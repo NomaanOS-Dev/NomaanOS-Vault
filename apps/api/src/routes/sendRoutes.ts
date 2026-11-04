@@ -513,7 +513,7 @@ router.get('/public/:token', async (req: Request, res: Response) => {
     const requiresPassword = Boolean(send.passwordHash);
     const requiresEmailVerification = send.recipientPolicy === 'SPECIFIC';
 
-    // If challenges exist, return metadata without exposing content
+    // If challenges exist, return metadata without exposing content and without incrementing access count
     if (requiresPassword || requiresEmailVerification) {
       return res.json({
         success: true,
@@ -531,21 +531,41 @@ router.get('/public/:token', async (req: Request, res: Response) => {
       });
     }
 
-    // Otherwise, atomic access increment and release encrypted payload
-    await prisma.$transaction([
-      prisma.secureSend.update({
-        where: { id: send.id },
-        data: { currentAccessCount: { increment: 1 } },
-      }),
-      prisma.sendAccess.create({
-        data: {
-          sendId: send.id,
-          status: 'SUCCESS',
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
+    // Atomic access increment and conditional limit check
+    const updateResult = await prisma.$transaction(async (tx) => {
+      const updated = await tx.secureSend.updateMany({
+        where: {
+          id: send.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          ...(send.maxAccessCount !== null ? { currentAccessCount: { lt: send.maxAccessCount } } : {}),
         },
-      }),
-    ]);
+        data: {
+          currentAccessCount: { increment: 1 },
+        },
+      });
+
+      if (updated.count === 1) {
+        await tx.sendAccess.create({
+          data: {
+            sendId: send.id,
+            status: 'SUCCESS',
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+          },
+        });
+      }
+
+      return updated.count;
+    });
+
+    if (updateResult === 0) {
+      return res.status(410).json({
+        success: false,
+        error: 'ACCESS_LIMIT_REACHED',
+        message: 'The maximum access count for this Send has been reached or it has expired.',
+      });
+    }
 
     return res.json({
       success: true,
@@ -633,20 +653,40 @@ router.post('/public/:token/verify-password', async (req: Request, res: Response
     }
 
     // Password verified! Increment access count atomically
-    await prisma.$transaction([
-      prisma.secureSend.update({
-        where: { id: send.id },
-        data: { currentAccessCount: { increment: 1 } },
-      }),
-      prisma.sendAccess.create({
-        data: {
-          sendId: send.id,
-          status: 'SUCCESS',
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
+    const updateResult = await prisma.$transaction(async (tx) => {
+      const updated = await tx.secureSend.updateMany({
+        where: {
+          id: send.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          ...(send.maxAccessCount !== null ? { currentAccessCount: { lt: send.maxAccessCount } } : {}),
         },
-      }),
-    ]);
+        data: {
+          currentAccessCount: { increment: 1 },
+        },
+      });
+
+      if (updated.count === 1) {
+        await tx.sendAccess.create({
+          data: {
+            sendId: send.id,
+            status: 'SUCCESS',
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+          },
+        });
+      }
+
+      return updated.count;
+    });
+
+    if (updateResult === 0) {
+      return res.status(410).json({
+        success: false,
+        error: 'ACCESS_LIMIT_REACHED',
+        message: 'The maximum access count for this Send has been reached or it has expired.',
+      });
+    }
 
     return res.json({
       success: true,
@@ -729,21 +769,41 @@ router.post('/public/:token/verify-email', async (req: Request, res: Response) =
       });
     }
 
-    // Atomic increment
-    await prisma.$transaction([
-      prisma.secureSend.update({
-        where: { id: send.id },
-        data: { currentAccessCount: { increment: 1 } },
-      }),
-      prisma.sendAccess.create({
-        data: {
-          sendId: send.id,
-          status: 'SUCCESS',
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
+    // Atomic access increment and conditional limit check
+    const updateResult = await prisma.$transaction(async (tx) => {
+      const updated = await tx.secureSend.updateMany({
+        where: {
+          id: send.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          ...(send.maxAccessCount !== null ? { currentAccessCount: { lt: send.maxAccessCount } } : {}),
         },
-      }),
-    ]);
+        data: {
+          currentAccessCount: { increment: 1 },
+        },
+      });
+
+      if (updated.count === 1) {
+        await tx.sendAccess.create({
+          data: {
+            sendId: send.id,
+            status: 'SUCCESS',
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+          },
+        });
+      }
+
+      return updated.count;
+    });
+
+    if (updateResult === 0) {
+      return res.status(410).json({
+        success: false,
+        error: 'ACCESS_LIMIT_REACHED',
+        message: 'The maximum access count for this Send has been reached or it has expired.',
+      });
+    }
 
     return res.json({
       success: true,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useVault } from '../context/VaultContext';
-import { Eye, EyeOff, KeyRound, Copy, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Copy, Check, AlertTriangle, ShieldCheck, Lock } from 'lucide-react';
 
 export const MasterPasswordSetupPage: React.FC = () => {
   const { user } = useAuth();
@@ -48,7 +48,7 @@ export const MasterPasswordSetupPage: React.FC = () => {
     setValidationError(null);
 
     if (password.length < 8) {
-      setValidationError('Master password must be at least 8 characters long');
+      setValidationError('Master password must be at least 8 characters long (14+ recommended)');
       return;
     }
 
@@ -57,8 +57,19 @@ export const MasterPasswordSetupPage: React.FC = () => {
       return;
     }
 
+    if (hint.trim().length > 0) {
+      if (hint.trim().toLowerCase() === password.toLowerCase()) {
+        setValidationError('Your hint cannot be identical to your master password.');
+        return;
+      }
+      if (hint.toLowerCase().includes(password.toLowerCase()) && password.length >= 4) {
+        setValidationError('Your hint cannot contain your master password.');
+        return;
+      }
+    }
+
     try {
-      const res = await setupMasterPassword(password, hint);
+      const res = await setupMasterPassword(password, hint.trim() || undefined);
       setRecoveryKey(res.recoveryKey);
     } catch (err: any) {
       // error is handled by vault context
@@ -79,24 +90,35 @@ export const MasterPasswordSetupPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F7F8F5] flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-lg bg-white border border-[#E5E9E5] rounded-2xl p-6 sm:p-8 shadow-sm">
+      <div className="w-full max-w-lg bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card">
         {!recoveryKey ? (
           <div>
             {/* Header */}
-            <div className="flex items-center gap-3.5 mb-6">
-              <div className="w-12 h-12 bg-[#E7F4EF] border border-[#B7E3D6] rounded-xl flex items-center justify-center text-[#168568] shrink-0">
+            <div className="flex items-center gap-3.5 mb-5">
+              <div className="w-12 h-12 bg-[#E7F4EF] border border-[#B7E3D6] rounded-2xl flex items-center justify-center text-[#168568] shrink-0 shadow-subtle">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-[#202923] tracking-tight">Set Up Master Password</h1>
-                <p className="text-xs text-[#78827B]">Account: <span className="font-medium text-[#202923]">{user?.email}</span></p>
+                <p className="text-xs text-[#78827B]">
+                  Account: <span className="font-semibold text-[#202923]">{user?.email}</span>
+                </p>
               </div>
             </div>
 
-            <div className="mb-6 p-4 bg-[#E7F4EF] border border-[#B7E3D6] rounded-xl text-xs text-[#168568] leading-relaxed">
-              Your Master Password unlocks your encrypted vault on this device using client-side{' '}
-              <strong className="font-semibold text-[#126e56]">Argon2id</strong> and{' '}
-              <strong className="font-semibold text-[#126e56]">AES-256-GCM</strong>. It is never stored on or transmitted to any server.
+            {/* Immutability & Security Advisory */}
+            <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 leading-relaxed space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>Important: Master Password is Permanent</span>
+              </div>
+              <p>
+                To guarantee zero-knowledge mathematical integrity, your Master Password cannot be changed once established. If you ever forget it, your vault can only be recovered using the Emergency Recovery Key generated in the next step.
+              </p>
+            </div>
+
+            <div className="mb-5 p-3.5 bg-[#E7F4EF]/70 border border-[#B7E3D6] rounded-2xl text-xs text-[#168568] leading-relaxed">
+              Your Master Password derives client-side encryption keys using <strong className="font-semibold text-[#126e56]">Argon2id (64MB)</strong> and <strong className="font-semibold text-[#126e56]">AES-256-GCM</strong>. It is never transmitted or stored on any server.
             </div>
 
             {(validationError || unlockError) && (
@@ -118,7 +140,7 @@ export const MasterPasswordSetupPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter strong master password"
-                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 focus:outline-none focus:border-[#168568] focus:bg-white transition-colors"
+                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 outline-none transition-colors"
                   />
                   <button
                     type="button"
@@ -162,7 +184,7 @@ export const MasterPasswordSetupPage: React.FC = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter master password"
-                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 focus:outline-none focus:border-[#168568] focus:bg-white transition-colors"
+                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 outline-none transition-colors"
                   />
                   <button
                     type="button"
@@ -176,22 +198,25 @@ export const MasterPasswordSetupPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                <label className="block text-xs font-semibold text-[#202923] mb-1">
                   Master Password Hint <span className="text-[#78827B] font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
                   value={hint}
                   onChange={(e) => setHint(e.target.value)}
-                  placeholder="A memory trigger (never enter your actual password here)"
-                  className="w-full bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-sm text-[#202923] placeholder-[#78827B]/60 focus:outline-none focus:border-[#168568] focus:bg-white transition-colors"
+                  placeholder="A memory cue (never your actual password)"
+                  className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-colors"
                 />
+                <p className="text-[11px] text-[#78827B] mt-1.5 leading-normal">
+                  If provided, this hint is delivered <strong>only</strong> via a private email to your verified address. It is never stored on our servers. Standard email is unencrypted, so never use your actual password as a hint.
+                </p>
               </div>
 
               <button
                 type="submit"
                 disabled={unlockLoading}
-                className="w-full mt-2 bg-[#168568] hover:bg-[#126e56] disabled:opacity-50 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm shadow-sm"
+                className="w-full mt-2 bg-[#168568] hover:bg-[#126e56] disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-xs sm:text-sm shadow-subtle"
               >
                 {unlockLoading ? (
                   <>
@@ -199,7 +224,10 @@ export const MasterPasswordSetupPage: React.FC = () => {
                     <span>Deriving Keys (Argon2id 64MB)...</span>
                   </>
                 ) : (
-                  <span>Initialize Encrypted Vault</span>
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Initialize Encrypted Vault</span>
+                  </>
                 )}
               </button>
             </form>
@@ -208,7 +236,7 @@ export const MasterPasswordSetupPage: React.FC = () => {
           /* Step 2: Recovery Key Modal/Display */
           <div>
             <div className="flex items-center gap-3.5 mb-6">
-              <div className="w-12 h-12 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
+              <div className="w-12 h-12 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
                 <KeyRound className="w-6 h-6" />
               </div>
               <div>
@@ -217,17 +245,22 @@ export const MasterPasswordSetupPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6 p-4 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
-              If you ever forget your Master Password, this Recovery Key is the <strong>only way</strong> to recover your encrypted vault. We cannot reset your password or decrypt your records on your behalf.
+            <div className="mb-6 p-4 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs text-amber-800 leading-relaxed space-y-1">
+              <p>
+                <strong>Sole Recovery Mechanism:</strong> Because your Master Password is permanently fixed and zero-knowledge, this Recovery Key is the <strong>only way</strong> to recover your encrypted vault if your password is forgotten.
+              </p>
+              <p>
+                We cannot reset your password or access your encrypted credentials under any circumstances.
+              </p>
             </div>
 
             {/* Formatted Key Box */}
-            <div className="mb-6 p-4 bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono text-sm tracking-wider text-[#202923] select-all">
+            <div className="mb-6 p-4 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-mono text-sm tracking-wider text-[#202923] select-all">
               <span className="break-all font-semibold">{recoveryKey}</span>
               <button
                 type="button"
                 onClick={copyRecoveryKey}
-                className="w-full sm:w-auto px-3.5 py-2 bg-white hover:bg-[#E7F4EF] border border-[#E5E9E5] hover:border-[#B7E3D6] rounded-lg text-[#202923] hover:text-[#168568] transition-colors flex items-center justify-center gap-1.5 shrink-0 text-xs font-sans font-medium shadow-2xs"
+                className="w-full sm:w-auto px-4 py-2 bg-white hover:bg-[#E7F4EF] border border-[#E5E9E5] hover:border-[#B7E3D6] rounded-xl text-[#202923] hover:text-[#168568] transition-colors flex items-center justify-center gap-1.5 shrink-0 text-xs font-sans font-semibold shadow-2xs"
               >
                 {copied ? <Check className="w-4 h-4 text-[#168568]" /> : <Copy className="w-4 h-4" />}
                 <span>{copied ? 'Copied' : 'Copy Key'}</span>
@@ -251,9 +284,9 @@ export const MasterPasswordSetupPage: React.FC = () => {
               type="button"
               disabled={!recoveryConfirmed}
               onClick={handleFinish}
-              className="w-full bg-[#168568] hover:bg-[#126e56] disabled:opacity-40 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm shadow-sm"
+              className="w-full bg-[#168568] hover:bg-[#126e56] disabled:opacity-40 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors text-xs sm:text-sm shadow-subtle"
             >
-              Continue to Vault
+              Continue to NomaanOS Vault
             </button>
           </div>
         )}

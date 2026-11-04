@@ -1,25 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { useVault } from '../../context/VaultContext';
-import { FolderSummary, VaultItemSummary, LoginPayload, CustomField } from '@pwm/shared';
-import { generatePassword, DEFAULT_GENERATOR_OPTIONS } from '../../lib/generator';
+import { api } from '../../services/api';
+import {
+  FolderSummary,
+  VaultItemSummary,
+  ItemType,
+  AnyVaultPayload,
+  CustomField,
+} from '@pwm/shared';
 import { PasswordGeneratorModal } from './PasswordGeneratorModal';
 import {
   X,
   Star,
   Eye,
   EyeOff,
-  Copy,
-  Check,
   RefreshCw,
   Plus,
   Trash2,
-  HelpCircle,
   AlertTriangle,
   KeyRound,
   Globe,
-  ShieldCheck,
+  CreditCard,
+  UserSquare2,
   FileText,
+  Terminal,
 } from 'lucide-react';
 
 interface AddLoginModalProps {
@@ -28,6 +32,7 @@ interface AddLoginModalProps {
   onSaved: () => void;
   folders: FolderSummary[];
   itemToEdit?: VaultItemSummary | null;
+  initialType?: ItemType;
 }
 
 export const AddLoginModal: React.FC<AddLoginModalProps> = ({
@@ -36,32 +41,60 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
   onSaved,
   folders,
   itemToEdit,
+  initialType = 'LOGIN',
 }) => {
-  const { user } = useAuth();
   const { encryptItem, decryptItem } = useVault();
 
-  // Form states
+  // Category Selection
+  const [itemType, setItemType] = useState<ItemType>(initialType);
+
+  // Common Header State
   const [itemName, setItemName] = useState('');
   const [folderId, setFolderId] = useState<string>('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
 
-  // Credentials
+  // 1. LOGIN Category Fields
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [totpSecret, setTotpSecret] = useState('');
-
-  // Autofill
   const [uris, setUris] = useState<string[]>(['']);
 
-  // Additional options
-  const [notes, setNotes] = useState('');
-  const [rePrompt, setRePrompt] = useState(false);
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  // 2. CARD Category Fields
+  const [cardholderName, setCardholderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expMonth, setExpMonth] = useState('');
+  const [expYear, setExpYear] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [brand, setBrand] = useState('Visa');
+  const [billingAddress, setBillingAddress] = useState('');
+
+  // 3. IDENTITY Category Fields
+  const [fullName, setFullName] = useState('');
+  const [dob, setDob] = useState('');
+  const [idEmail, setIdEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [country, setCountry] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [company, setCompany] = useState('');
+
+  // 4. SECURE NOTE Category Fields
+  const [content, setContent] = useState('');
+
+  // 5. SSH KEY Category Fields
+  const [sshHost, setSshHost] = useState('');
+  const [sshUser, setSshUser] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
+  const [publicKey, setPublicKey] = useState('');
+  const [sshPassphrase, setSshPassphrase] = useState('');
 
   // UI state
   const [showPassword, setShowPassword] = useState(false);
-  const [showTotp, setShowTotp] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showCvv, setShowCvv] = useState(false);
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [showPassphrase, setShowPassphrase] = useState(false);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [decrypting, setDecrypting] = useState(false);
@@ -73,98 +106,122 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
 
     if (itemToEdit) {
       setItemName(itemToEdit.itemName);
+      setItemType(itemToEdit.itemType || 'LOGIN');
       setFolderId(itemToEdit.folderId || '');
       setIsFavorite(itemToEdit.isFavorite);
 
-      // Decrypt payload in browser
       setDecrypting(true);
-      decryptItem<LoginPayload>(itemToEdit.encryptedPayload)
+      decryptItem<AnyVaultPayload>(itemToEdit.encryptedPayload)
         .then((payload) => {
+          setNotes(payload.notes || '');
+          setCustomFields(payload.customFields || []);
+
+          // Populate Category Specifics
           setUsername(payload.username || '');
           setPassword(payload.password || '');
           setTotpSecret(payload.totpSecret || '');
           setUris(payload.uris && payload.uris.length > 0 ? payload.uris : ['']);
-          setNotes(payload.notes || '');
-          setRePrompt(Boolean(payload.rePrompt));
-          setCustomFields(payload.customFields || []);
+
+          setCardholderName(payload.cardholderName || '');
+          setCardNumber(payload.cardNumber || '');
+          setExpMonth(payload.expMonth || '');
+          setExpYear(payload.expYear || '');
+          setCvv(payload.cvv || '');
+          setBrand(payload.brand || 'Visa');
+          setBillingAddress(payload.billingAddress || '');
+
+          setFullName(payload.fullName || '');
+          setDob(payload.dob || '');
+          setIdEmail(payload.email || '');
+          setPhone(payload.phone || '');
+          setAddress(payload.address || '');
+          setCountry(payload.country || '');
+          setPostalCode(payload.postalCode || '');
+          setCompany(payload.company || '');
+
+          setContent(payload.content || '');
+
+          setSshHost(payload.host || '');
+          setSshUser(payload.username || '');
+          setPrivateKey(payload.privateKey || '');
+          setPublicKey(payload.publicKey || '');
+          setSshPassphrase(payload.passphrase || '');
         })
         .catch((err) => {
           console.error('Decryption error:', err);
-          setError('Failed to decrypt vault item. Your vault key may be mismatched.');
+          setError('Failed to decrypt vault item.');
         })
         .finally(() => {
           setDecrypting(false);
         });
     } else {
       // New item defaults
+      setItemType(initialType || 'LOGIN');
       setItemName('');
       setFolderId('');
       setIsFavorite(false);
+      setNotes('');
+      setCustomFields([]);
+
       setUsername('');
       setPassword('');
       setTotpSecret('');
       setUris(['']);
-      setNotes('');
-      setRePrompt(false);
-      setCustomFields([]);
+
+      setCardholderName('');
+      setCardNumber('');
+      setExpMonth('');
+      setExpYear('');
+      setCvv('');
+      setBrand('Visa');
+      setBillingAddress('');
+
+      setFullName('');
+      setDob('');
+      setIdEmail('');
+      setPhone('');
+      setAddress('');
+      setCountry('');
+      setPostalCode('');
+      setCompany('');
+
+      setContent('');
+
+      setSshHost('');
+      setSshUser('');
+      setPrivateKey('');
+      setPublicKey('');
+      setSshPassphrase('');
       setError(null);
     }
-  }, [isOpen, itemToEdit]);
+  }, [isOpen, itemToEdit, initialType]);
 
   if (!isOpen) return null;
 
-  const copyToClipboard = (text: string, fieldId: string) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldId);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  const handleQuickGenerate = () => {
-    const newPwd = generatePassword(DEFAULT_GENERATOR_OPTIONS);
-    setPassword(newPwd);
-  };
-
-  const handleAddUri = () => {
-    setUris([...uris, '']);
-  };
-
-  const handleUriChange = (index: number, val: string) => {
-    const updated = [...uris];
-    updated[index] = val;
-    setUris(updated);
-  };
-
-  const handleRemoveUri = (index: number) => {
-    if (uris.length === 1) {
-      setUris(['']);
-    } else {
-      setUris(uris.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleAddCustomField = () => {
+  // Custom fields handlers
+  const addCustomField = (type: 'text' | 'hidden' | 'boolean') => {
     setCustomFields([
       ...customFields,
       {
         id: Math.random().toString(36).substring(2, 9),
         name: '',
-        value: '',
-        type: 'text',
+        value: type === 'boolean' ? 'false' : '',
+        type,
       },
     ]);
   };
 
-  const handleUpdateCustomField = (index: number, updates: Partial<CustomField>) => {
-    const updated = [...customFields];
-    updated[index] = { ...updated[index], ...updates };
-    setCustomFields(updated);
+  const removeCustomField = (id: string) => {
+    setCustomFields(customFields.filter((f) => f.id !== id));
   };
 
-  const handleRemoveCustomField = (index: number) => {
-    setCustomFields(customFields.filter((_, i) => i !== index));
+  const updateCustomField = (id: string, updates: Partial<CustomField>) => {
+    setCustomFields(
+      customFields.map((f) => (f.id === id ? { ...f, ...updates } : f))
+    );
   };
 
+  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemName.trim()) {
@@ -176,43 +233,81 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
     setError(null);
 
     try {
-      // 1. Pack sensitive payload
-      const payload: LoginPayload = {
-        username: username.trim(),
-        password,
-        totpSecret: totpSecret.trim(),
-        uris: uris.filter((u) => u.trim() !== ''),
-        notes,
-        rePrompt,
-        customFields,
-      };
+      let payload: AnyVaultPayload = {};
 
-      // 2. Encrypt locally in browser with AES-256-GCM
+      if (itemType === 'LOGIN') {
+        payload = {
+          username: username.trim(),
+          password,
+          totpSecret: totpSecret.trim(),
+          uris: uris.filter((u) => u.trim().length > 0),
+          notes,
+          customFields,
+        };
+      } else if (itemType === 'CARD') {
+        payload = {
+          cardholderName: cardholderName.trim(),
+          cardNumber: cardNumber.trim(),
+          expMonth: expMonth.trim(),
+          expYear: expYear.trim(),
+          cvv: cvv.trim(),
+          brand,
+          billingAddress: billingAddress.trim(),
+          notes,
+          customFields,
+        };
+      } else if (itemType === 'IDENTITY') {
+        payload = {
+          fullName: fullName.trim(),
+          dob: dob.trim(),
+          email: idEmail.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          country: country.trim(),
+          postalCode: postalCode.trim(),
+          company: company.trim(),
+          notes,
+          customFields,
+        };
+      } else if (itemType === 'SECURE_NOTE') {
+        payload = {
+          content,
+          notes,
+          customFields,
+        };
+      } else if (itemType === 'SSH_KEY') {
+        payload = {
+          host: sshHost.trim(),
+          username: sshUser.trim(),
+          privateKey,
+          publicKey,
+          passphrase: sshPassphrase,
+          notes,
+          customFields,
+        };
+      }
+
+      // Zero-Knowledge Client-Side AES-256-GCM Encryption
       const encryptedPayload = await encryptItem(payload);
 
-      // 3. Send to backend
-      const { api } = await import('../../services/api');
+      const itemData = {
+        itemName: itemName.trim(),
+        itemType,
+        folderId: folderId ? folderId : null,
+        isFavorite,
+        encryptedPayload,
+      };
+
       if (itemToEdit) {
-        await api.updateItem(itemToEdit.id, {
-          itemName: itemName.trim(),
-          itemType: 'LOGIN',
-          encryptedPayload,
-          folderId: folderId || null,
-          isFavorite,
-        });
+        await api.updateItem(itemToEdit.id, itemData);
       } else {
-        await api.createItem({
-          itemName: itemName.trim(),
-          itemType: 'LOGIN',
-          encryptedPayload,
-          folderId: folderId || null,
-          isFavorite,
-        });
+        await api.createItem(itemData);
       }
 
       onSaved();
       onClose();
     } catch (err: any) {
+      console.error('Save item error:', err);
       setError(err.message || 'Failed to save item');
     } finally {
       setLoading(false);
@@ -220,72 +315,103 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#202923]/45 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto">
-      <div className="w-full sm:max-w-2xl bg-white sm:border border-[#E5E9E5] sm:rounded-2xl shadow-modal flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
-        {/* Fixed Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#E5E9E5] bg-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
-              <KeyRound className="w-5 h-5" />
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#202923]/40 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+        <div className="w-full max-w-2xl bg-white border border-[#E5E9E5] rounded-3xl shadow-modal overflow-hidden flex flex-col max-h-[92vh] my-auto animate-in fade-in zoom-in-95 duration-150">
+          {/* Modal Header */}
+          <div className="px-6 py-4 border-b border-[#E5E9E5] flex items-center justify-between shrink-0 bg-white">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
+                {itemType === 'LOGIN' && <Globe className="w-4 h-4" />}
+                {itemType === 'CARD' && <CreditCard className="w-4 h-4" />}
+                {itemType === 'IDENTITY' && <UserSquare2 className="w-4 h-4" />}
+                {itemType === 'SECURE_NOTE' && <FileText className="w-4 h-4" />}
+                {itemType === 'SSH_KEY' && <Terminal className="w-4 h-4" />}
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#202923]">
+                  {itemToEdit ? `Edit ${itemType.replace('_', ' ')}` : 'Create New Vault Item'}
+                </h2>
+                <p className="text-[11px] text-[#78827B]">
+                  Encrypted with client-side AES-256-GCM before saving
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-base font-bold text-[#202923] tracking-tight">
-                {itemToEdit ? 'Edit Credentials' : 'Add Login Credentials'}
-              </h2>
-              <span className="text-[10px] text-[#168568] font-semibold uppercase tracking-wider block">
-                Zero-Knowledge Encrypted
-              </span>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsFavorite(!isFavorite)}
-              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              className="p-2 rounded-xl hover:bg-[#F3F5F2] text-[#78827B] hover:text-amber-500 transition-colors"
-            >
-              <Star
-                className={`w-5 h-5 ${
-                  isFavorite ? 'text-amber-500 fill-amber-500' : 'text-[#78827B]'
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFavorite(!isFavorite)}
+                className={`p-2 rounded-xl transition-colors ${
+                  isFavorite
+                    ? 'text-amber-500 bg-amber-50'
+                    : 'text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2]'
                 }`}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2] transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <Star className={`w-4 h-4 ${isFavorite ? 'fill-amber-500' : ''}`} />
+              </button>
 
-        {/* Scrollable Form Body */}
-        <div className="overflow-y-auto p-4 sm:p-6 space-y-5 flex-1">
-          {error && (
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-red-700 text-xs">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>{error}</span>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2] rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Category Tabs (if creating new item) */}
+          {!itemToEdit && (
+            <div className="px-6 py-3 bg-[#F7F8F5] border-b border-[#E5E9E5] flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {[
+                { type: 'LOGIN' as ItemType, label: 'Login', icon: Globe },
+                { type: 'CARD' as ItemType, label: 'Card', icon: CreditCard },
+                { type: 'IDENTITY' as ItemType, label: 'Identity', icon: UserSquare2 },
+                { type: 'SECURE_NOTE' as ItemType, label: 'Secure Note', icon: FileText },
+                { type: 'SSH_KEY' as ItemType, label: 'SSH Key', icon: Terminal },
+              ].map((cat) => {
+                const Icon = cat.icon;
+                const active = itemType === cat.type;
+                return (
+                  <button
+                    key={cat.type}
+                    type="button"
+                    onClick={() => setItemType(cat.type)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                      active
+                        ? 'bg-white text-[#168568] border border-[#B7E3D6] shadow-2xs'
+                        : 'text-[#78827B] hover:text-[#202923] hover:bg-white/60'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{cat.label}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          {decrypting ? (
-            <div className="p-12 text-center text-xs text-[#78827B]">
-              <span className="w-5 h-5 border-2 border-[#168568]/30 border-t-[#168568] rounded-full inline-block animate-spin mr-2 align-middle" />
-              Decrypting login details in browser memory...
-            </div>
-          ) : (
-            <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
-              {/* Section A: Item Details */}
-              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Item Details</span>
-                </h3>
+          {/* Form Body */}
+          <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5 flex-1">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs text-red-700">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{error}</span>
+              </div>
+            )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="sm:col-span-2">
+            {decrypting ? (
+              <div className="py-12 flex flex-col items-center justify-center text-xs text-[#78827B] gap-2">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#168568]" />
+                <span>Decrypting item with in-memory vault key...</span>
+              </div>
+            ) : (
+              <>
+                {/* 1. Common Info: Name & Folder */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                       Item Name <span className="text-red-500">*</span>
                     </label>
@@ -294,20 +420,18 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                       required
                       value={itemName}
                       onChange={(e) => setItemName(e.target.value)}
-                      placeholder="e.g. Google, GitHub, Netflix, Work Portal"
-                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
-                      Vault Owner
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={user?.email || ''}
-                      className="w-full bg-[#EAECE8] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-xs text-[#78827B] cursor-not-allowed outline-none"
+                      placeholder={
+                        itemType === 'LOGIN'
+                          ? 'e.g. GitHub, Google, Amazon'
+                          : itemType === 'CARD'
+                          ? 'e.g. Chase Sapphire, Corporate Visa'
+                          : itemType === 'IDENTITY'
+                          ? 'e.g. Personal Profile, Passport'
+                          : itemType === 'SECURE_NOTE'
+                          ? 'e.g. Server recovery steps'
+                          : 'e.g. Production Bastion Key'
+                      }
+                      className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
                     />
                   </div>
 
@@ -318,9 +442,9 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                     <select
                       value={folderId}
                       onChange={(e) => setFolderId(e.target.value)}
-                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none transition-all"
+                      className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
                     >
-                      <option value="">No folder</option>
+                      <option value="">(No Folder)</option>
                       {folders.map((f) => (
                         <option key={f.id} value={f.id}>
                           {f.name}
@@ -329,294 +453,526 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                     </select>
                   </div>
                 </div>
-              </div>
 
-              {/* Section B: Login Credentials */}
-              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5" />
-                  <span>Login Credentials</span>
-                </h3>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
-                    Username / Email
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Username or email address"
-                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 outline-none transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(username, 'username')}
-                      title="Copy username"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#168568] p-1"
-                    >
-                      {copiedField === 'username' ? (
-                        <Check className="w-4 h-4 text-[#168568]" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter or generate password"
-                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] font-mono placeholder-[#78827B]/60 pr-24 outline-none transition-all"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[#78827B]">
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        title={showPassword ? 'Hide password' : 'Show password'}
-                        className="p-1 hover:text-[#202923]"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleQuickGenerate}
-                        title="Quick generate random password"
-                        className="p-1 hover:text-[#168568] transition-colors"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(password, 'password')}
-                        title="Copy password"
-                        className="p-1 hover:text-[#168568]"
-                      >
-                        {copiedField === 'password' ? (
-                          <Check className="w-4 h-4 text-[#168568]" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
+                {/* ================= CATEGORY 1: LOGIN ================= */}
+                {itemType === 'LOGIN' && (
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Website URL
+                      </label>
+                      <input
+                        type="url"
+                        value={uris[0] || ''}
+                        onChange={(e) => setUris([e.target.value])}
+                        placeholder="https://example.com"
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                      />
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <p className="text-[11px] text-[#78827B]">
-                      Need custom parameters?{' '}
-                      <button
-                        type="button"
-                        onClick={() => setIsGeneratorOpen(true)}
-                        className="text-[#168568] font-semibold hover:underline inline-flex items-center gap-0.5"
-                      >
-                        Open Password Generator
-                      </button>
-                    </p>
-                  </div>
-                </div>
 
-                <div>
-                  <div className="flex items-center gap-1 mb-1.5">
-                    <label className="text-xs font-semibold text-[#202923]">
-                      Authenticator Key (TOTP)
-                    </label>
-                    <span title="Base32 TOTP secret key for two-step verification codes">
-                      <HelpCircle className="w-3.5 h-3.5 text-[#78827B] cursor-help" />
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showTotp ? 'text' : 'password'}
-                      value={totpSecret}
-                      onChange={(e) => setTotpSecret(e.target.value)}
-                      placeholder="e.g. JBSWY3DPEHPK3PXP"
-                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs text-[#202923] font-mono placeholder-[#78827B]/60 pr-10 outline-none transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowTotp(!showTotp)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
-                    >
-                      {showTotp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section C: Website Addresses (Autofill URIs) */}
-              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Website Addresses (URIs)</span>
-                </h3>
-
-                <div className="space-y-2.5">
-                  {uris.map((uri, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="relative flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Username / Email
+                        </label>
                         <input
                           type="text"
-                          value={uri}
-                          onChange={(e) => handleUriChange(index, e.target.value)}
-                          placeholder="https://example.com"
-                          className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="username@domain.com"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
                         />
                       </div>
-                      {uris.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveUri(index)}
-                          className="p-2 text-[#78827B] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Remove URI"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
 
-                  <button
-                    type="button"
-                    onClick={handleAddUri}
-                    className="text-xs text-[#168568] hover:text-[#126e56] font-semibold flex items-center gap-1.5 pt-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Another Website URI</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Section D: Notes & Custom Fields */}
-              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Notes & Additional Fields</span>
-                </h3>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
-                    Encrypted Notes
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Secure recovery codes, PINs, or confidential notes..."
-                    className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all resize-none"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-                  <input
-                    type="checkbox"
-                    checked={rePrompt}
-                    onChange={(e) => setRePrompt(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#168568] border-[#E5E9E5] focus:ring-[#168568]"
-                  />
-                  <span className="text-xs font-medium text-[#202923]">
-                    Require master password re-prompt to view password
-                  </span>
-                </label>
-
-                {/* Custom Fields */}
-                {customFields.length > 0 && (
-                  <div className="space-y-2.5 pt-2 border-t border-[#E5E9E5]">
-                    <span className="text-xs text-[#202923] font-semibold block">Custom Fields</span>
-                    {customFields.map((field, idx) => (
-                      <div key={field.id} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <input
-                          type="text"
-                          value={field.name}
-                          onChange={(e) => handleUpdateCustomField(idx, { name: e.target.value })}
-                          placeholder="Field name"
-                          className="w-full sm:w-1/3 bg-white border border-[#E5E9E5] focus:border-[#168568] rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
-                        />
-                        <input
-                          type={field.type === 'hidden' ? 'password' : 'text'}
-                          value={field.value}
-                          onChange={(e) => handleUpdateCustomField(idx, { value: e.target.value })}
-                          placeholder="Field value"
-                          className="flex-1 bg-white border border-[#E5E9E5] focus:border-[#168568] rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <select
-                            value={field.type}
-                            onChange={(e) =>
-                              handleUpdateCustomField(idx, {
-                                type: e.target.value as 'text' | 'hidden' | 'boolean',
-                              })
-                            }
-                            className="bg-white border border-[#E5E9E5] rounded-xl px-2.5 py-2 text-xs text-[#202923] outline-none"
-                          >
-                            <option value="text">Text</option>
-                            <option value="hidden">Hidden</option>
-                            <option value="boolean">Boolean</option>
-                          </select>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-semibold text-[#202923]">Password</label>
                           <button
                             type="button"
-                            onClick={() => handleRemoveCustomField(idx)}
-                            className="p-2 text-[#78827B] hover:text-red-600 rounded-lg hover:bg-red-50"
+                            onClick={() => setIsGeneratorOpen(true)}
+                            className="text-[11px] text-[#168568] font-bold hover:underline flex items-center gap-1"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <KeyRound className="w-3 h-3" />
+                            <span>Generate</span>
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Password"
+                            className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm text-[#202923] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Authenticator Secret (TOTP)
+                      </label>
+                      <input
+                        type="text"
+                        value={totpSecret}
+                        onChange={(e) => setTotpSecret(e.target.value)}
+                        placeholder="JBSWY3DPEHPK3PXP"
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 font-mono text-xs sm:text-sm text-[#202923] outline-none"
+                      />
+                    </div>
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleAddCustomField}
-                  className="text-xs text-[#168568] hover:text-[#126e56] font-semibold flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Custom Field</span>
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+                {/* ================= CATEGORY 2: CARD ================= */}
+                {itemType === 'CARD' && (
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Cardholder Name
+                        </label>
+                        <input
+                          type="text"
+                          value={cardholderName}
+                          onChange={(e) => setCardholderName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
 
-        {/* Fixed Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 sm:px-6 py-4 border-t border-[#E5E9E5] bg-[#F7F8F5] shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-[#78827B] hover:text-[#202923] hover:bg-white border border-transparent hover:border-[#E5E9E5] transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="login-form"
-            disabled={loading || decrypting}
-            className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-subtle transition-all disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Encrypting & Saving...</span>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Card Brand
+                        </label>
+                        <select
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        >
+                          <option value="Visa">Visa</option>
+                          <option value="Mastercard">Mastercard</option>
+                          <option value="American Express">American Express</option>
+                          <option value="Discover">Discover</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Card Number
+                      </label>
+                      <input
+                        type="text"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        placeholder="•••• •••• •••• ••••"
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 font-mono text-xs sm:text-sm text-[#202923] outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Exp Month
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={2}
+                          value={expMonth}
+                          onChange={(e) => setExpMonth(e.target.value)}
+                          placeholder="MM (01-12)"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none text-center"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Exp Year
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={4}
+                          value={expYear}
+                          onChange={(e) => setExpYear(e.target.value)}
+                          placeholder="YYYY"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none text-center"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          CVV / CVC
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showCvv ? 'text' : 'password'}
+                            maxLength={4}
+                            value={cvv}
+                            onChange={(e) => setCvv(e.target.value)}
+                            placeholder="•••"
+                            className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 pr-8 text-xs sm:text-sm text-[#202923] outline-none text-center font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCvv(!showCvv)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
+                          >
+                            {showCvv ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Billing Address
+                      </label>
+                      <input
+                        type="text"
+                        value={billingAddress}
+                        onChange={(e) => setBillingAddress(e.target.value)}
+                        placeholder="Street, City, State, Country"
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= CATEGORY 3: IDENTITY ================= */}
+                {itemType === 'IDENTITY' && (
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="John Michael Doe"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Date of Birth
+                        </label>
+                        <input
+                          type="text"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          placeholder="YYYY-MM-DD"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={idEmail}
+                          onChange={(e) => setIdEmail(e.target.value)}
+                          placeholder="identity@domain.com"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+1 (555) 123-4567"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Street Address
+                      </label>
+                      <input
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="123 Financial Way, Suite 400"
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Country
+                        </label>
+                        <input
+                          type="text"
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          placeholder="United States"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Postal / ZIP Code
+                        </label>
+                        <input
+                          type="text"
+                          value={postalCode}
+                          onChange={(e) => setPostalCode(e.target.value)}
+                          placeholder="94107"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Company / Org
+                        </label>
+                        <input
+                          type="text"
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          placeholder="Acme Corp"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= CATEGORY 4: SECURE NOTE ================= */}
+                {itemType === 'SECURE_NOTE' && (
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Encrypted Note Content
+                      </label>
+                      <textarea
+                        rows={7}
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="Write your private recovery seed, software license, or confidential notes here..."
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl p-3.5 text-xs sm:text-sm text-[#202923] outline-none font-mono leading-relaxed resize-y"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= CATEGORY 5: SSH KEY ================= */}
+                {itemType === 'SSH_KEY' && (
+                  <div className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          Host / Server
+                        </label>
+                        <input
+                          type="text"
+                          value={sshHost}
+                          onChange={(e) => setSshHost(e.target.value)}
+                          placeholder="192.168.1.1 or server.internal"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                          SSH Username
+                        </label>
+                        <input
+                          type="text"
+                          value={sshUser}
+                          onChange={(e) => setSshUser(e.target.value)}
+                          placeholder="ubuntu, root, or admin"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-[#202923]">Private Key</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPrivateKey(!showPrivateKey)}
+                          className="text-[11px] text-[#168568] font-bold hover:underline flex items-center gap-1"
+                        >
+                          {showPrivateKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{showPrivateKey ? 'Hide' : 'Reveal'}</span>
+                        </button>
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={privateKey}
+                        onChange={(e) => setPrivateKey(e.target.value)}
+                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                        className={`w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl p-3.5 text-xs font-mono outline-none resize-y ${
+                          !showPrivateKey ? 'filter blur-xs select-none' : ''
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Public Key (Optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={publicKey}
+                        onChange={(e) => setPublicKey(e.target.value)}
+                        placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5..."
+                        className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl p-3.5 text-xs font-mono outline-none resize-y"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                        Key Passphrase (Optional)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassphrase ? 'text' : 'password'}
+                          value={sshPassphrase}
+                          onChange={(e) => setSshPassphrase(e.target.value)}
+                          placeholder="Passphrase protecting private key"
+                          className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm text-[#202923] outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassphrase(!showPassphrase)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
+                        >
+                          {showPassphrase ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Common Additional Notes */}
+                <div className="pt-2 border-t border-[#E5E9E5]">
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Encrypted Notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Private notes (encrypted with your vault key)"
+                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl p-3 text-xs sm:text-sm text-[#202923] outline-none resize-y"
+                  />
+                </div>
+
+                {/* Custom Fields Section */}
+                <div className="pt-2 border-t border-[#E5E9E5]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-[#202923] uppercase tracking-wider">
+                      Custom Fields
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => addCustomField('text')}
+                        className="px-2.5 py-1 bg-[#F7F8F5] hover:bg-[#E7F4EF] hover:text-[#168568] border border-[#E5E9E5] text-[11px] font-semibold text-[#202923] rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Text</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => addCustomField('hidden')}
+                        className="px-2.5 py-1 bg-[#F7F8F5] hover:bg-[#E7F4EF] hover:text-[#168568] border border-[#E5E9E5] text-[11px] font-semibold text-[#202923] rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Hidden</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {customFields.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                      {customFields.map((field) => (
+                        <div key={field.id} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={field.name}
+                            onChange={(e) => updateCustomField(field.id, { name: e.target.value })}
+                            placeholder="Field Name"
+                            className="w-1/3 bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
+                          />
+                          <input
+                            type={field.type === 'hidden' ? 'password' : 'text'}
+                            value={field.value}
+                            onChange={(e) => updateCustomField(field.id, { value: e.target.value })}
+                            placeholder="Field Value"
+                            className="flex-1 bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeCustomField(field.id)}
+                            className="p-2 text-[#78827B] hover:text-red-600 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
-            ) : (
-              <span>Save Credential</span>
             )}
-          </button>
+
+            {/* Modal Actions */}
+            <div className="pt-4 border-t border-[#E5E9E5] flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 bg-white hover:bg-[#F3F5F2] border border-[#E5E9E5] text-[#202923] rounded-xl text-xs font-semibold transition-colors shadow-2xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || decrypting}
+                className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-subtle flex items-center gap-2 transition-colors"
+              >
+                {loading ? 'Encrypting & Saving...' : itemToEdit ? 'Save Changes' : 'Save Item'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
+      {/* Embedded Generator Modal */}
       <PasswordGeneratorModal
         isOpen={isGeneratorOpen}
         onClose={() => setIsGeneratorOpen(false)}
-        onSelectPassword={(newPwd) => setPassword(newPwd)}
+        onSelectPassword={(generated) => {
+          setPassword(generated);
+          setShowPassword(true);
+        }}
       />
-    </div>
+    </>
   );
 };

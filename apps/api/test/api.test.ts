@@ -120,7 +120,8 @@ describe('Password Manager Day 1 Security & API Integration Tests', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.masterPasswordSalt).toBe('salt-alice-base64');
       expect(res.body.data.encryptedVaultKey).toBe('wrapped-vault-key-base64-alice');
-      expect(res.body.data.hint).toBe('Favorite animal');
+      // SECURITY: Hint is never leaked in API response
+      expect(res.body.data.hint).toBeUndefined();
     });
 
     it('POST /api/vault/recover should permit updating master password wrapping with valid recovery key', async () => {

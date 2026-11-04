@@ -1,189 +1,130 @@
-# SecureVault — Zero-Knowledge Password Manager
+# NomaanOS Vault — Enterprise Zero-Knowledge Password Manager
 
-Enterprise-grade Zero-Knowledge Password Manager built with React, TypeScript, Express, PostgreSQL / Prisma ORM, Argon2id, and Web Crypto AES-256-GCM.
-
----
-
-## Architecture Overview
-
-```
-                      +------------------------------------------------+
-                      |                 Browser Client                 |
-                      |  React 18 + TypeScript + Vite + Tailwind CSS   |
-                      +------------------------------------------------+
-                                              |
-                     1. Master Password -> Argon2id (64MB) -> KEK
-                     2. Client generates 256-bit AES-GCM Vault Key
-                     3. Client wraps Vault Key with KEK & Recovery Key
-                     4. Individual items encrypted locally (AES-256-GCM)
-                                              |
-                   Only encrypted ciphertext, salts, & wrapped keys sent
-                                              |
-                                              v
-                      +------------------------------------------------+
-                      |                  Backend API                   |
-                      |            Node.js + Express + Zod             |
-                      +------------------------------------------------+
-                                |                            |
-                    Google OAuth/OIDC Check          Prisma ORM
-                    Server-Side Token Verify                 |
-                                |                            v
-                      +-------------------+        +-------------------+
-                      |   Google OAuth    |        |    PostgreSQL     |
-                      |  OpenID Connect   |        |   / SQLite Dev    |
-                      +-------------------+        +-------------------+
-```
+**NomaanOS Vault** is a secure, enterprise-grade, zero-knowledge password and credentials manager. Built with a client-first cryptographic architecture, sensitive secrets are encrypted and decrypted strictly in the browser using Argon2id key derivation and AES-256-GCM authenticated encryption. The server and database never receive or store plaintext passwords, recovery keys, or vault data.
 
 ---
 
-## Security Model & Zero-Knowledge Guarantee
+## Key Features
 
-1. **Client-Side Key Derivation (Argon2id)**:
-   - Derives a 256-bit Key Encryption Key (KEK) using Argon2id via WebAssembly (`hash-wasm`).
-   - Parameters: Memory = 65536 KiB (64 MB), Iterations = 3, Parallelism = 4.
-2. **Authenticated Encryption (AES-256-GCM)**:
-   - Plaintext credentials (passwords, usernames, TOTP secrets, notes, URIs, custom fields) are serialized and encrypted in the browser using the Web Crypto API.
-   - Every encryption operation generates a cryptographically secure, unique 12-byte (96-bit) IV. Nonces are never reused.
-3. **Zero Plaintext Storage**:
-   - The server and database **never** see or store the Master Password, derived KEK, or unencrypted vault item credentials.
-   - The database only persists base64-encoded ciphertexts (`encryptedPayload`), wrapping metadata, and user ownership relations.
-4. **Emergency Recovery System**:
-   - Generates a 256-bit high-entropy Recovery Key formatted into 8 blocks (`XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX`).
-   - The Vault Key is separately wrapped using a key derived from this Recovery Key.
-   - If the Master Password is forgotten, access is restored client-side without administrator intervention or backdoors.
+1. **Enterprise Zero-Knowledge Cryptography**:
+   - Master Password never leaves the client; key derivation uses WebAssembly **Argon2id** (64MB memory, 3 iterations, 4 parallelism).
+   - 256-bit AES-GCM Vault Key generated locally in the browser with Web Crypto API and wrapped using the derived Key Encryption Key (KEK).
+   - Unique 12-byte (96-bit) nonces/IVs generated for every encryption operation.
 
----
+2. **Immutable Master Password Architecture**:
+   - Master Password is permanently fixed upon account creation to prevent cryptanalytic downgrade attacks or unauthorized vault re-wrapping.
+   - Master Password Hint is never stored in plaintext and is never displayed on screen or leaked via API; it is dispatched privately via verified email only.
 
-## Directory Structure
+3. **Multi-Factor Account Registration & Email Verification**:
+   - Standard email/password registration with SHA-256 hashed single-use verification tokens.
+   - Unverified accounts cannot set up or access vault key material.
+   - Transactional email service with responsive HTML email templates for account activation and password hints.
+   - Google OAuth 2.0 / OpenID Connect integration for SSO.
 
-```text
-9-Password-Manager/
-├── apps/
-│   ├── web/                     # React + Vite Frontend
-│   │   ├── src/
-│   │   │   ├── components/      # UI components & reference modals
-│   │   │   │   ├── layout/      # 5-section sidebar & topbar layout
-│   │   │   │   └── modals/      # AddLogin, ViewLogin, Folder, Recovery
-│   │   │   ├── context/         # AuthContext & VaultContext
-│   │   │   ├── lib/             # Web Crypto & Argon2id implementation
-│   │   │   ├── pages/           # Login, MasterPasswordSetup, VaultsDashboard
-│   │   │   ├── services/        # REST API client
-│   │   │   └── styles/          # Tailwind CSS theme
-│   │   └── package.json
-│   │
-│   └── api/                     # Node.js + Express REST API
-│       ├── src/
-│       │   ├── database/        # Prisma client
-│       │   ├── middleware/      # Auth & Error handling
-│       │   ├── routes/          # Auth, Vault, Folders, Items
-│       │   └── security/        # Google OAuth verification & JWT sessions
-│       ├── test/                # Supertest + Vitest integration tests
-│       └── package.json
-│
-├── packages/
-│   └── shared/                  # Common TypeScript interfaces & DTOs
-│
-├── prisma/
-│   ├── schema.prisma            # PostgreSQL Production Schema
-│   └── schema.sqlite.prisma     # SQLite Development & Testing Schema
-│
-├── scripts/
-│   └── db-setup.mjs             # Automated DB migration & generation
-├── docker-compose.yml           # PostgreSQL container service
-├── .env.example                 # Environment configuration template
-├── package.json                 # Monorepo workspaces & root scripts
-└── README.md
-```
+4. **Comprehensive Vault Categories**:
+   - **Logins**: URLs, usernames, passwords, TOTP authenticator secrets, custom fields.
+   - **Payment Cards**: Cardholder name, card brand, card number, expiration dates, security code / CVV.
+   - **Identities**: Full name, email, phone, street address, city, state, postal code, country.
+   - **Secure Notes**: Multi-line markdown notes with search capabilities.
+   - **SSH Keys**: Key name, host/fingerprint, public key, private key, passphrase.
+
+5. **Secure Send (Zero-Knowledge Sharing)**:
+   - Share ephemeral encrypted text or encrypted files (up to 20 MB).
+   - Passphrase protection with client-side PBKDF2/AES-GCM encryption.
+   - Expiration dates and strict access limits (1, 2, 4, 10, or unlimited views).
+   - Concurrency-safe atomic access counter ensuring race conditions cannot bypass access limits.
+
+6. **Password & Passphrase Generator**:
+   - Cryptographically secure pseudorandom generator (`crypto.getRandomValues`).
+   - Customizable character sets (uppercase, lowercase, numbers, symbols, ambiguous character exclusion).
+   - Wordlist-based passphrase generator with selectable delimiters.
+   - Username and email alias generator.
+
+7. **Data Portability**:
+   - **Import**: CSV / JSON import with field mapping and duplicate detection.
+   - **Export**: Plaintext JSON/CSV or encrypted password-protected backup archives.
+
+8. **Original Premium Visual Identity**:
+   - Bespoke light-first security workspace design (`#F7F8F5` Ivory background, `#FFFFFF` crisp cards, `#202923` Charcoal text, `#168568` Emerald brand accents).
+   - Fully responsive layout across mobile, tablet, and desktop viewports.
 
 ---
 
-## Quickstart Guide
+## Technology Stack
+
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, `hash-wasm` (Argon2id)
+- **Backend**: Node.js, Express, TypeScript, Zod, Helmet, Express Rate Limit, Nodemailer
+- **Database**: PostgreSQL 16 (production) / SQLite (local dev), Prisma ORM
+- **Deployment**: Docker, Docker Compose, Nginx Alpine, Multi-stage builds
+
+---
+
+## Quick Start (Development)
 
 ### 1. Install Dependencies
-```powershell
-npm.cmd install
+```bash
+npm install
 ```
 
-### 2. Setup Database & Migrations
-```powershell
-npm.cmd run prisma:push
-# Or use the universal setup script:
-node scripts/db-setup.mjs
+### 2. Configure Environment
+```bash
+cp .env.example .env
+```
+Default `.env` is configured for local SQLite development.
+
+### 3. Initialize Database
+```bash
+npx prisma generate
+npx prisma db push
 ```
 
-### 3. Start Backend & Frontend
-In Terminal 1 (Backend API on port 5000):
-```powershell
-npm.cmd run dev:api
+### 4. Run Development Servers
+```bash
+npm run dev
 ```
-
-In Terminal 2 (Vite Frontend on port 5173):
-```powershell
-npm.cmd run dev:web
-```
-
-Open `http://localhost:5173` in your browser.
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3001`
 
 ---
 
-## Features Implemented Across 3-Day Roadmap
+## Production Deployment
 
-### Day 1: Authentication, Security Foundation, Database & Vaults
-- **Real Google Sign-In**: Authenticates users with Google OAuth 2.0 / OpenID Connect ID token verification on the backend.
-- **Client-Side Zero-Knowledge Encryption**: Argon2id KEK derivation + AES-256-GCM symmetric encryption for all credentials before transmission.
-- **Emergency Recovery Key**: High-entropy 32-character recovery key allowing account recovery if the Master Password is forgotten.
-- **Main Vaults Dashboard**: Left filter sidebar (All vaults, Favorites, Login, Card, Identity, Secure Note, SSH key, Folders, Collections, Archive, Trash), real-time search, item list table, and pixel-accurate empty state.
-- **Add & Edit Login Modal**: 4-part modal matching screenshots (Item details, Login credentials with password generator integration, Autofill URIs, Additional options).
-- **Folder Management**: Create, rename, delete folders with count badges.
-- **Favorites, Archive & Trash**: Soft delete with restore and permanent deletion.
+### 1. Configure Production Environment
+```bash
+cp .env.production.example .env
+```
+Set `JWT_SECRET`, `SESSION_SECRET`, `POSTGRES_PASSWORD`, `APP_BASE_URL`, and SMTP credentials.
 
-### Day 2: Secure Send, Password Generator, Import & Export
-- **Secure Send (Text & File)**: Zero-knowledge sharing where AES-256-GCM decryption key resides strictly in the URL fragment (`#key=...`) and is never sent to the server.
-- **Public Recipient Page (`/send/:token`)**: End-to-end client decryption, optional password protection, email domain restrictions, atomic access counters, and expiration dates.
-- **Password Generator (Tools -> Generator)**:
-  - Password mode (custom length 5–128, character toggles A–Z, a–z, 0–9, symbols, minimum numbers/symbols, avoid ambiguous).
-  - Passphrase mode (3–20 words, EFF wordlist, customizable separators, capitalize, include numbers).
-  - Username mode (random word, email alias, or randomized username).
-- **Import (Tools -> Import)**: Parsers for Bitwarden JSON, Bitwarden CSV, and Generic CSV/JSON with live item preview, masked passwords, duplicate handling, and client-side encryption.
-- **Export (Tools -> Export)**: JSON and CSV format downloads requiring Master Password re-authentication and client-side decryption.
-
-### Day 3: Full Integration, Onboarding, Settings & Security Reports
-- **5-Section Unified Navigation**: Seamless integration between Vaults, Send, Tools (Generator, Import, Export), Reports, and Settings.
-- **First-Time User Onboarding Card**: "Get started with your vault" card on Vaults dashboard:
-  - Step 1: Account setup (auto-completed).
-  - Step 2: Import passwords (navigates to Tools -> Import, marked complete on import).
-  - Step 3: Browser extension ("Coming soon").
-  - Persistent progress and dismissibility saved to user profile.
-- **Settings Page (`/settings`)**:
-  - Profile Information: Avatar, display name editing with live persistence, verified email badge, account creation date, and authentication provider.
-  - Master Password Management: Re-wraps the symmetric vault key with a fresh Argon2id salt and new password without modifying or re-encrypting existing vault items. Real-time strength meter.
-  - Emergency Recovery Key: Explanatory security guidance, key rotation with confirmation modal, and single-use display card with copy action.
-  - Account Sign-Out.
-- **Security Reports Page (`/reports`)**: Clean security intelligence hub previewing weak passwords, reused credentials, breach monitoring, insecure websites, and 2FA audits.
-
----
-
-## Google OAuth 2.0 Setup Instructions
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Create a new OAuth 2.0 Client ID (Application type: **Web application**).
-3. Set **Authorized JavaScript origins**:
-   - `http://localhost:5173`
-   - `http://127.0.0.1:5173`
-4. Copy the Client ID and Client Secret into `.env`:
-   ```env
-   GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-   GOOGLE_CLIENT_SECRET="your-client-secret"
-   ```
-5. Restart the server. The live Google Sign-In button will appear immediately.
-
----
-
-## Running the Automated Test Suite
-
-Run the full integration test suite covering Authentication, Zero-Knowledge Encryption, Folders, Items, and Cross-User Isolation:
-
-```powershell
-npm.cmd run test
+### 2. Launch Production Containers
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+### 3. Deploy Database Migrations
+```bash
+./scripts/migrate-prod.sh
+```
+
+For full production architecture, TLS setup, and maintenance guidelines, see [DEPLOYMENT.md](file:///d:/Projects/9-Password-Manager/DEPLOYMENT.md).
+
+---
+
+## Automated Test Suites
+
+Run the complete test suite:
+```bash
+npm test
+```
+The suite executes 63 unit and integration tests across 6 suites:
+- `registration-verification.test.ts`: Registration, token verification, replay prevention, unverified access rejection.
+- `categories.test.ts`: End-to-end CRUD for LOGIN, CARD, IDENTITY, SECURE_NOTE, SSH_KEY.
+- `send-limits.test.ts`: Atomic concurrency, access exhaustion, and wrong-password preservation.
+- `send.test.ts`: Secure Send creation, public recipient download, file storage, and passphrase validation.
+- `api.test.ts`: Day 1 core vault cryptography, folder isolation, item lifecycle.
+- `day3.test.ts`: Day 3 settings, reports, export/import, and master password immutability guards.
+
+---
+
+## License
+
+Private & Confidential — NomaanOS Vault. All Rights Reserved.

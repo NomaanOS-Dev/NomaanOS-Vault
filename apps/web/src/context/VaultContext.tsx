@@ -27,13 +27,7 @@ interface VaultContextType {
   lockVault: () => void;
   recoverVault: (
     recoveryKey: string,
-    newMasterPassword: string,
-    hint?: string
-  ) => Promise<void>;
-  changeMasterPassword: (
-    currentPassword: string,
-    newPassword: string,
-    hint?: string
+    newMasterPassword: string
   ) => Promise<void>;
   rotateRecoveryKey: () => Promise<{ recoveryKey: string }>;
   encryptItem: (data: any) => Promise<string>;
@@ -153,8 +147,7 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
    */
   const recoverVault = async (
     recoveryKeyStr: string,
-    newMasterPassword: string,
-    hint?: string
+    newMasterPassword: string
   ): Promise<void> => {
     try {
       setUnlockLoading(true);
@@ -194,77 +187,12 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         newMasterPasswordSalt: newSalt,
         newKdfParameters: DEFAULT_KDF_PARAMS,
         newRecoveryWrappedVaultKey: newRecoveryWrapped,
-        newHint: hint,
       });
 
       setVaultKey(recoveredVaultKey);
       await refreshUser();
     } catch (err: any) {
       setUnlockError(err.message || 'Recovery failed. Invalid recovery key.');
-      throw err;
-    } finally {
-      setUnlockLoading(false);
-    }
-  };
-
-  /**
-   * Change Master Password:
-   * 1. Validate current master password by unwrapping vault key
-   * 2. Derive new KEK with fresh salt using Argon2id
-   * 3. Wrap vault key with new KEK
-   * 4. Update backend metadata without touching encrypted items
-   */
-  const changeMasterPassword = async (
-    currentPassword: string,
-    newPassword: string,
-    hint?: string
-  ): Promise<void> => {
-    try {
-      setUnlockLoading(true);
-      setUnlockError(null);
-
-      const keysMeta = await api.getVaultKeys();
-
-      // 1. Verify current master password by unwrapping existing vault key
-      const currentKek = await deriveKeyFromMasterPassword(
-        currentPassword,
-        keysMeta.masterPasswordSalt,
-        keysMeta.kdfParameters || DEFAULT_KDF_PARAMS
-      );
-
-      let activeVaultKey = vaultKey;
-      try {
-        const verifiedKey = await unwrapVaultKey(keysMeta.encryptedVaultKey, currentKek);
-        activeVaultKey = verifiedKey;
-      } catch {
-        throw new Error('Current master password does not match.');
-      }
-
-      // 2. Generate fresh salt & derive new KEK
-      const newSalt = generateSalt(16);
-      const newKek = await deriveKeyFromMasterPassword(
-        newPassword,
-        newSalt,
-        DEFAULT_KDF_PARAMS
-      );
-
-      // 3. Wrap vault key with new KEK
-      const newEncryptedVaultKey = await wrapVaultKey(activeVaultKey, newKek);
-
-      // 4. Send to backend
-      await api.changeMasterPassword({
-        encryptedVaultKey: newEncryptedVaultKey,
-        masterPasswordSalt: newSalt,
-        kdfAlgorithm: 'Argon2id',
-        kdfParameters: DEFAULT_KDF_PARAMS,
-        hint: hint || undefined,
-      });
-
-      // Keep active key in memory
-      setVaultKey(activeVaultKey);
-      await refreshUser();
-    } catch (err: any) {
-      setUnlockError(err.message || 'Failed to change master password');
       throw err;
     } finally {
       setUnlockLoading(false);
@@ -337,7 +265,6 @@ export const VaultProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         unlockVault,
         lockVault,
         recoverVault,
-        changeMasterPassword,
         rotateRecoveryKey,
         encryptItem,
         decryptItem,

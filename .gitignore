@@ -12,4 +12,6 @@ coverage/
 *.sqlite-journal
 prisma/*.db
 prisma/*.db-journal
+apps/api/storage/
+backups/
 

@@ -12,8 +12,6 @@ export const UnlockVaultModal: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isRecoverOpen, setIsRecoverOpen] = useState(false);
 
-  const hint = user?.keyMetadata?.hint;
-
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     clearUnlockError();
@@ -64,12 +62,6 @@ export const UnlockVaultModal: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {hint && (
-            <div className="text-xs text-[#78827B] bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3">
-              <strong className="text-[#202923]">Password Hint:</strong> {hint}
-            </div>
-          )}
 
           <button
             type="submit"

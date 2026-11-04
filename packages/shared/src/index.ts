@@ -17,6 +17,49 @@ export interface LoginPayload {
   customFields?: CustomField[];
 }
 
+export interface CardPayload {
+  cardholderName?: string;
+  cardNumber?: string;
+  expMonth?: string;
+  expYear?: string;
+  cvv?: string;
+  brand?: string;
+  billingAddress?: string;
+  notes?: string;
+  customFields?: CustomField[];
+}
+
+export interface IdentityPayload {
+  fullName?: string;
+  dob?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  country?: string;
+  postalCode?: string;
+  company?: string;
+  notes?: string;
+  customFields?: CustomField[];
+}
+
+export interface SecureNotePayload {
+  content?: string;
+  notes?: string;
+  customFields?: CustomField[];
+}
+
+export interface SSHKeyPayload {
+  privateKey?: string;
+  publicKey?: string;
+  passphrase?: string;
+  host?: string;
+  username?: string;
+  notes?: string;
+  customFields?: CustomField[];
+}
+
+export type AnyVaultPayload = LoginPayload & CardPayload & IdentityPayload & SecureNotePayload & SSHKeyPayload;
+
 export interface EncryptedPayload {
   ciphertext: string; // Base64
   iv: string;         // Base64 (12 bytes nonce for AES-GCM)
@@ -38,7 +81,6 @@ export interface UserProfile {
   profileImage?: string | null;
   createdAt: string;
   hasMasterPassword: boolean;
-  masterPasswordHint?: string | null;
   authProvider?: string;
   onboardingDismissed?: boolean;
 }
@@ -51,7 +93,6 @@ export interface VaultKeyMetadataInfo {
   kdfParameters: KdfParameters;
   recoveryWrappedVaultKey?: string | null;
   recoveryMetadata?: string | null;
-  hint?: string | null;
 }
 
 export interface FolderSummary {
@@ -78,7 +119,7 @@ export interface VaultItemSummary {
   createdAt: string;
   updatedAt: string;
   encryptedPayload: string;
-  decryptedPayload?: LoginPayload;
+  decryptedPayload?: AnyVaultPayload;
 }
 
 export interface ApiResponse<T = any> {
@@ -86,6 +127,19 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+export interface RegisterRequest {
+  name: string;
+  email: string;
+}
+
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
 }
 
 export interface SetupMasterPasswordRequest {
@@ -104,7 +158,6 @@ export interface RecoverVaultRequest {
   newMasterPasswordSalt: string;
   newKdfParameters: KdfParameters;
   newRecoveryWrappedVaultKey: string;
-  newHint?: string;
 }
 
 // Day 2 Types: Send, Generator, Import, Export
@@ -180,16 +233,6 @@ export interface ImportPreviewItem {
   validationError?: string;
 }
 
-// Day 3 Types: Settings, Profile, Master Password Change, Recovery Rotation
-
-export interface ChangeMasterPasswordRequest {
-  encryptedVaultKey: string;
-  masterPasswordSalt: string;
-  kdfAlgorithm?: string;
-  kdfParameters?: KdfParameters;
-  hint?: string;
-}
-
 export interface RotateRecoveryKeyRequest {
   recoveryWrappedVaultKey: string;
   recoveryMetadata?: string;
@@ -199,4 +242,3 @@ export interface UpdateProfileRequest {
   username?: string;
   onboardingDismissed?: boolean;
 }
-

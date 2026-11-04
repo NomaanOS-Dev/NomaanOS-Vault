@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { PublicSendResponse } from '@pwm/shared';
@@ -32,6 +32,7 @@ export const PublicSendRecipientPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [submittingChallenge, setSubmittingChallenge] = useState(false);
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const fetchedRef = useRef<string | null>(null);
 
   // Extract decryption key from URL hash fragment #key=...
   const getKeyFromFragment = () => {
@@ -62,6 +63,8 @@ export const PublicSendRecipientPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!token || fetchedRef.current === token) return;
+    fetchedRef.current = token;
     loadPublicSend();
   }, [token]);
 

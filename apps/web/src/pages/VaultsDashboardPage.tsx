@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVault } from '../context/VaultContext';
 import { api } from '../services/api';
-import { FolderSummary, VaultItemSummary, LoginPayload } from '@pwm/shared';
+import { FolderSummary, VaultItemSummary, AnyVaultPayload } from '@pwm/shared';
 import { AddLoginModal } from '../components/modals/AddLoginModal';
 import { ViewLoginModal } from '../components/modals/ViewLoginModal';
 import { FolderModal } from '../components/modals/FolderModal';
@@ -16,7 +16,7 @@ import {
   CreditCard,
   UserSquare2,
   FileText,
-  Key,
+  Terminal,
   Folder as FolderIcon,
   Archive,
   Trash2,
@@ -81,7 +81,19 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
 
   // Decrypted search metadata cache
   const [decryptedMetadata, setDecryptedMetadata] = useState<
-    Record<string, { username?: string; uris?: string[] }>
+    Record<
+      string,
+      {
+        username?: string;
+        uris?: string[];
+        cardNumber?: string;
+        brand?: string;
+        fullName?: string;
+        email?: string;
+        content?: string;
+        host?: string;
+      }
+    >
   >({});
 
   // Quick action copied indicator
@@ -114,13 +126,19 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
       if (isVaultUnlocked) {
         itemList.forEach((it) => {
           if (!decryptedMetadata[it.id]) {
-            decryptItem<LoginPayload>(it.encryptedPayload)
+            decryptItem<AnyVaultPayload>(it.encryptedPayload)
               .then((payload) => {
                 setDecryptedMetadata((prev) => ({
                   ...prev,
                   [it.id]: {
                     username: payload.username,
                     uris: payload.uris,
+                    cardNumber: payload.cardNumber,
+                    brand: payload.brand,
+                    fullName: payload.fullName,
+                    email: payload.email,
+                    content: payload.content ? payload.content.slice(0, 60) : undefined,
+                    host: payload.host,
                   },
                 }));
               })
@@ -151,6 +169,11 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
       const dec = decryptedMetadata[item.id];
       if (dec?.username && dec.username.toLowerCase().includes(q)) return true;
       if (dec?.uris && dec.uris.some((u) => u.toLowerCase().includes(q))) return true;
+      if (dec?.fullName && dec.fullName.toLowerCase().includes(q)) return true;
+      if (dec?.email && dec.email.toLowerCase().includes(q)) return true;
+      if (dec?.host && dec.host.toLowerCase().includes(q)) return true;
+      if (dec?.brand && dec.brand.toLowerCase().includes(q)) return true;
+      if (dec?.content && dec.content.toLowerCase().includes(q)) return true;
       return false;
     });
   }, [items, searchQuery, decryptedMetadata]);
@@ -264,8 +287,8 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
     try {
       let un = decryptedMetadata[item.id]?.username;
       if (un === undefined) {
-        const payload = await decryptItem<LoginPayload>(item.encryptedPayload);
-        un = payload.username;
+        const payload = await decryptItem<AnyVaultPayload>(item.encryptedPayload);
+        un = payload.username || payload.fullName || payload.cardNumber;
       }
       if (un) {
         await navigator.clipboard.writeText(un);
@@ -273,7 +296,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
         setTimeout(() => setCopiedItemId(null), 2000);
       }
     } catch (err: any) {
-      alert('Failed to copy username: ' + err.message);
+      alert('Failed to copy: ' + err.message);
     }
   };
 
@@ -281,14 +304,15 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
   const handleCopyPassword = async (item: VaultItemSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const payload = await decryptItem<LoginPayload>(item.encryptedPayload);
-      if (payload.password) {
-        await navigator.clipboard.writeText(payload.password);
+      const payload = await decryptItem<AnyVaultPayload>(item.encryptedPayload);
+      const secret = payload.password || payload.cvv || payload.privateKey || payload.content;
+      if (secret) {
+        await navigator.clipboard.writeText(secret);
         setCopiedItemId(`${item.id}-pwd`);
         setTimeout(() => setCopiedItemId(null), 2000);
       }
     } catch (err: any) {
-      alert('Failed to copy password: ' + err.message);
+      alert('Failed to copy: ' + err.message);
     }
   };
 
@@ -300,7 +324,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
     { id: 'card', label: 'Cards', icon: CreditCard },
     { id: 'identity', label: 'Identities', icon: UserSquare2 },
     { id: 'note', label: 'Secure Notes', icon: FileText },
-    { id: 'ssh', label: 'SSH Keys', icon: Key },
+    { id: 'ssh', label: 'SSH Keys', icon: Terminal },
     { id: 'archive', label: 'Archive', icon: Archive },
     { id: 'trash', label: 'Trash', icon: Trash2 },
   ];
@@ -336,7 +360,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
               className="w-full sm:w-auto px-4 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-subtle flex items-center justify-center gap-2 transition-all duration-150"
             >
               <Plus className="w-4 h-4" />
-              <span>Create Password</span>
+              <span>New Item</span>
             </button>
           </div>
         </div>
@@ -592,14 +616,26 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-10 h-10 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] shrink-0">
-                              <KeyRound className="w-5 h-5" />
+                              {item.itemType === 'CARD' && <CreditCard className="w-5 h-5" />}
+                              {item.itemType === 'IDENTITY' && <UserSquare2 className="w-5 h-5" />}
+                              {item.itemType === 'SECURE_NOTE' && <FileText className="w-5 h-5" />}
+                              {item.itemType === 'SSH_KEY' && <Terminal className="w-5 h-5" />}
+                              {(!item.itemType || item.itemType === 'LOGIN') && <Globe className="w-5 h-5" />}
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-sm font-bold text-[#202923] truncate leading-tight group-hover:text-[#168568] transition-colors">
                                 {item.itemName}
                               </h4>
                               <p className="text-[11px] text-[#78827B] truncate mt-0.5">
-                                {cleanDomain || (meta?.username ? meta.username : 'Credential')}
+                                {item.itemType === 'CARD'
+                                  ? `${meta?.brand || 'Card'} •••• ${meta?.cardNumber ? meta.cardNumber.slice(-4) : '••••'}`
+                                  : item.itemType === 'IDENTITY'
+                                  ? meta?.fullName || meta?.email || 'Identity Record'
+                                  : item.itemType === 'SECURE_NOTE'
+                                  ? meta?.content || 'Encrypted Note'
+                                  : item.itemType === 'SSH_KEY'
+                                  ? `${meta?.username || 'user'}@${meta?.host || 'server'}`
+                                  : cleanDomain || (meta?.username ? meta.username : 'Login Credential')}
                               </p>
                             </div>
                           </div>

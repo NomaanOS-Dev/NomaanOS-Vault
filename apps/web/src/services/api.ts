@@ -4,9 +4,9 @@ import {
   VaultItemSummary,
   SetupMasterPasswordRequest,
   RecoverVaultRequest,
-  ChangeMasterPasswordRequest,
   RotateRecoveryKeyRequest,
   UpdateProfileRequest,
+  RegisterRequest,
   SecureSendSummary,
   CreateSendRequest,
   PublicSendResponse,
@@ -44,7 +44,28 @@ class ApiService {
 
   // Auth Endpoints
   async getAuthConfig() {
-    return this.request<{ googleConfigured: boolean; googleClientId: string | null }>('/auth/config');
+    return this.request<{ googleConfigured: boolean; googleClientId: string | null; emailConfigured?: boolean }>('/auth/config');
+  }
+
+  async register(data: RegisterRequest) {
+    return this.request<{ email: string; devVerificationToken?: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async verifyEmail(token: string) {
+    return this.request<{ user: UserProfile; token: string }>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async resendVerification(email: string) {
+    return this.request<{ message: string }>('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
   }
 
   async loginWithGoogle(idToken: string) {
@@ -100,13 +121,6 @@ class ApiService {
 
   async recoverVault(req: RecoverVaultRequest) {
     return this.request<{ message: string }>('/vault/recover', {
-      method: 'POST',
-      body: JSON.stringify(req),
-    });
-  }
-
-  async changeMasterPassword(req: ChangeMasterPasswordRequest) {
-    return this.request<{ message: string }>('/vault/change-master-password', {
       method: 'POST',
       body: JSON.stringify(req),
     });

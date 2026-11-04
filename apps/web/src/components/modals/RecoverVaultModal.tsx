@@ -17,7 +17,6 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
   const [recoveryKey, setRecoveryKey] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [hint, setHint] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -44,7 +43,7 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
     }
 
     try {
-      await recoverVault(recoveryKey.trim(), newPassword, hint);
+      await recoverVault(recoveryKey.trim(), newPassword);
       onSuccess();
     } catch {
       // handled in context
@@ -126,19 +125,6 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repeat new master password"
-              className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2 text-xs text-[#202923] outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[#202923] mb-1">
-              Password Hint <span className="text-[#78827B] font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={hint}
-              onChange={(e) => setHint(e.target.value)}
-              placeholder="A memory trigger (never your password)"
               className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2 text-xs text-[#202923] outline-none"
             />
           </div>

@@ -10,6 +10,9 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
+import { validateEnvironment } from './config';
+validateEnvironment();
+
 import authRoutes from './routes/authRoutes';
 import vaultRoutes from './routes/vaultRoutes';
 import folderRoutes from './routes/folderRoutes';
@@ -24,8 +27,11 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 // Security Headers
 app.use(
   helmet({
-    contentSecurityPolicy: false, // handled by client/Vite in development
+    contentSecurityPolicy: false, // Managed by reverse proxy in production, Vite in dev
     crossOriginEmbedderPolicy: false,
+    frameguard: { action: 'deny' },
+    noSniff: true,
+    hidePoweredBy: true,
   })
 );
 
@@ -39,34 +45,60 @@ app.use(
   })
 );
 
-// Rate Limiting
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per window
+// General Rate Limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     error: 'RATE_LIMIT_EXCEEDED',
-    message: 'Too many requests from this IP. Please try again after 15 minutes.',
+    message: 'Too many requests. Please try again after 15 minutes.',
   },
 });
 
+app.use(generalLimiter);
 app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check
+/**
+ * Health Check (Liveness Probe)
+ */
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
-    status: 'ok',
+    status: 'UP',
     timestamp: new Date().toISOString(),
-    service: 'Password Manager Core API',
+    uptime: process.uptime(),
+    service: 'NomaanOS Vault API',
   });
 });
 
-// Mount Routes
-app.use('/api/auth', authLimiter, authRoutes);
+/**
+ * Readiness Probe (Checks Database & Storage Connectivity)
+ */
+app.get('/api/ready', async (req: Request, res: Response) => {
+  try {
+    // Ping database
+    await prisma.$queryRaw`SELECT 1`;
+    return res.json({
+      status: 'READY',
+      timestamp: new Date().toISOString(),
+      database: 'CONNECTED',
+    });
+  } catch (error: any) {
+    return res.status(503).json({
+      status: 'NOT_READY',
+      timestamp: new Date().toISOString(),
+      database: 'DISCONNECTED',
+      error: error.message,
+    });
+  }
+});
+
+// Mount Application Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/vault', vaultRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/items', itemRoutes);
@@ -84,7 +116,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`Password Manager API server running on port ${PORT}`);
+    console.log(`NomaanOS Vault API server running on port ${PORT}`);
   });
 }
-

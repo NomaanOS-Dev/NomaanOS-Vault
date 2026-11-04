@@ -92,7 +92,7 @@ describe('Password Manager Day 3 Integration & Settings Tests', () => {
   });
 
   describe('2. Master Password Management', () => {
-    it('POST /api/vault/change-master-password should re-wrap vault key with new salt and hint', async () => {
+    it('SECURITY: POST /api/vault/change-master-password is permanently disabled and returns 405', async () => {
       const res = await request(app)
         .post('/api/vault/change-master-password')
         .set('Authorization', `Bearer ${userToken}`)
@@ -102,24 +102,9 @@ describe('Password Manager Day 3 Integration & Settings Tests', () => {
           hint: 'Updated master password hint',
         });
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-
-      // Verify key metadata was updated
-      const keysRes = await request(app)
-        .get('/api/vault/keys')
-        .set('Authorization', `Bearer ${userToken}`);
-
-      expect(keysRes.status).toBe(200);
-      expect(keysRes.body.data.encryptedVaultKey).toBe('new_re_wrapped_vault_key_mock_base64');
-      expect(keysRes.body.data.masterPasswordSalt).toBe('new_fresh_salt_mock_base64');
-      expect(keysRes.body.data.hint).toBe('Updated master password hint');
-
-      // Verify audit event
-      const audit = await prisma.auditEvent.findFirst({
-        where: { userId, eventType: 'MASTER_PASSWORD_CHANGED' },
-      });
-      expect(audit).not.toBeNull();
+      expect(res.status).toBe(405);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('METHOD_NOT_ALLOWED');
     });
 
     it('POST /api/vault/rotate-recovery-key should update recovery wrapped key', async () => {

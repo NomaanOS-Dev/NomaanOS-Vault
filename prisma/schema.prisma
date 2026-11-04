@@ -1,6 +1,6 @@
 // Prisma schema for Password Manager
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -24,6 +24,7 @@ model User {
   folders          Folder[]
   auditEvents      AuditEvent[]
   sends            SecureSend[]
+  verificationTokens EmailVerificationToken[]
 
   @@index([email])
 }
@@ -66,7 +67,6 @@ model VaultKeyMetadata {
   kdfParameters            String   // JSON string of { memory, iterations, parallelism }
   recoveryWrappedVaultKey  String?  // Vault key wrapped with Recovery Key
   recoveryMetadata         String?  // Recovery verification hash / salt JSON
-  hint                     String?  // Optional non-sensitive master password hint
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
@@ -201,4 +201,19 @@ model SendFile {
   createdAt        DateTime   @default(now())
 
   send             SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }

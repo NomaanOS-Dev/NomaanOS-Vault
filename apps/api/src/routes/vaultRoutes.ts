@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/authMiddleware';
 import { prisma } from '../database/prisma';
+import { emailService } from '../services/emailService';
 
 const router = Router();
 
@@ -30,22 +31,6 @@ const recoverVaultSchema = z.object({
     hashLength: z.number().int().positive().default(32),
   }),
   newRecoveryWrappedVaultKey: z.string().min(1),
-  newHint: z.string().max(255).optional(),
-});
-
-const changeMasterPasswordSchema = z.object({
-  encryptedVaultKey: z.string().min(1, 'Encrypted vault key is required'),
-  masterPasswordSalt: z.string().min(1, 'Master password salt is required'),
-  kdfAlgorithm: z.string().default('Argon2id'),
-  kdfParameters: z
-    .object({
-      memory: z.number().int().positive(),
-      iterations: z.number().int().positive(),
-      parallelism: z.number().int().positive(),
-      hashLength: z.number().int().positive().default(32),
-    })
-    .optional(),
-  hint: z.string().max(255).optional(),
 });
 
 const rotateRecoveryKeySchema = z.object({
@@ -54,7 +39,7 @@ const rotateRecoveryKeySchema = z.object({
 });
 
 /**
- * Setup Master Password for current user
+ * Setup Master Password for current user (Requires verified email)
  */
 router.post('/setup-master-password', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -68,6 +53,20 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
     }
 
     const userId = req.user!.id;
+
+    // Strict security check: user MUST be email verified
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        error: 'EMAIL_NOT_VERIFIED',
+        message: 'You must verify your email address before setting up your Master Password.',
+      });
+    }
+
     let vault = await prisma.vault.findFirst({
       where: { userId },
       include: { keyMetadata: true },
@@ -87,7 +86,7 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
       return res.status(400).json({
         success: false,
         error: 'ALREADY_CONFIGURED',
-        message: 'Master password has already been configured for this vault.',
+        message: 'Master password has already been configured for this vault. Master Password cannot be changed.',
       });
     }
 
@@ -102,6 +101,7 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
     } = parseResult.data;
 
     const createdMetadata = await prisma.$transaction(async (tx) => {
+      // Create metadata WITHOUT storing plaintext hint in the database
       const metadata = await tx.vaultKeyMetadata.create({
         data: {
           vaultId: vault.id,
@@ -111,7 +111,6 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
           kdfParameters: JSON.stringify(kdfParameters),
           recoveryWrappedVaultKey,
           recoveryMetadata,
-          hint: hint || null,
         },
       });
 
@@ -119,11 +118,18 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
         data: {
           userId,
           eventType: 'MASTER_PASSWORD_SETUP',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
         },
       });
 
       return metadata;
     });
+
+    // If an optional hint was provided, send it exclusively via private email
+    if (hint && hint.trim().length > 0) {
+      await emailService.sendMasterPasswordHintEmail(user.email, hint.trim(), user.username);
+    }
 
     return res.json({
       success: true,
@@ -136,12 +142,10 @@ router.post('/setup-master-password', requireAuth, async (req: Request, res: Res
           masterPasswordSalt: createdMetadata.masterPasswordSalt,
           kdfAlgorithm: createdMetadata.kdfAlgorithm,
           kdfParameters,
-          hint: createdMetadata.hint,
         },
       },
     });
   } catch (error: any) {
-    console.error('Setup master password error:', error);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
@@ -178,7 +182,6 @@ router.get('/keys', requireAuth, async (req: Request, res: Response) => {
         kdfAlgorithm: vault.keyMetadata.kdfAlgorithm,
         kdfParameters: JSON.parse(vault.keyMetadata.kdfParameters),
         recoveryWrappedVaultKey: vault.keyMetadata.recoveryWrappedVaultKey,
-        hint: vault.keyMetadata.hint,
       },
     });
   } catch (error: any) {
@@ -223,7 +226,6 @@ router.post('/recover', requireAuth, async (req: Request, res: Response) => {
       newMasterPasswordSalt,
       newKdfParameters,
       newRecoveryWrappedVaultKey,
-      newHint,
     } = parseResult.data;
 
     await prisma.$transaction(async (tx) => {
@@ -234,7 +236,6 @@ router.post('/recover', requireAuth, async (req: Request, res: Response) => {
           masterPasswordSalt: newMasterPasswordSalt,
           kdfParameters: JSON.stringify(newKdfParameters),
           recoveryWrappedVaultKey: newRecoveryWrappedVaultKey,
-          hint: newHint || null,
         },
       });
 
@@ -242,6 +243,8 @@ router.post('/recover', requireAuth, async (req: Request, res: Response) => {
         data: {
           userId,
           eventType: 'VAULT_RECOVERED',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
         },
       });
     });
@@ -260,76 +263,18 @@ router.post('/recover', requireAuth, async (req: Request, res: Response) => {
 });
 
 /**
- * Change Master Password (Re-wrap Vault Key with fresh salt while preserving vault items)
+ * Master Password change endpoint is PERMANENTLY REMOVED and disallowed.
  */
-router.post('/change-master-password', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const parseResult = changeMasterPasswordSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: parseResult.error.errors[0].message,
-      });
-    }
-
-    const userId = req.user!.id;
-    const vault = await prisma.vault.findFirst({
-      where: { userId },
-      include: { keyMetadata: true },
-    });
-
-    if (!vault || !vault.keyMetadata) {
-      return res.status(404).json({
-        success: false,
-        error: 'VAULT_NOT_FOUND',
-        message: 'Vault metadata not found.',
-      });
-    }
-
-    const {
-      encryptedVaultKey,
-      masterPasswordSalt,
-      kdfAlgorithm,
-      kdfParameters,
-      hint,
-    } = parseResult.data;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.vaultKeyMetadata.update({
-        where: { vaultId: vault.id },
-        data: {
-          encryptedVaultKey,
-          masterPasswordSalt,
-          kdfAlgorithm,
-          ...(kdfParameters ? { kdfParameters: JSON.stringify(kdfParameters) } : {}),
-          hint: hint !== undefined ? hint : vault.keyMetadata!.hint,
-        },
-      });
-
-      await tx.auditEvent.create({
-        data: {
-          userId,
-          eventType: 'MASTER_PASSWORD_CHANGED',
-        },
-      });
-    });
-
-    return res.json({
-      success: true,
-      message: 'Master password changed successfully.',
-    });
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      error: 'SERVER_ERROR',
-      message: error.message,
-    });
-  }
+router.all('/change-master-password', requireAuth, (req: Request, res: Response) => {
+  return res.status(405).json({
+    success: false,
+    error: 'METHOD_NOT_ALLOWED',
+    message: 'Master Password cannot be changed once established. Master Password modification is permanently disabled.',
+  });
 });
 
 /**
- * Rotate Emergency Recovery Key
+ * Rotate Emergency Recovery Key (Re-wraps vault key under fresh recovery key)
  */
 router.post('/rotate-recovery-key', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -371,6 +316,8 @@ router.post('/rotate-recovery-key', requireAuth, async (req: Request, res: Respo
         data: {
           userId,
           eventType: 'RECOVERY_KEY_ROTATED',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
         },
       });
     });
@@ -389,4 +336,3 @@ router.post('/rotate-recovery-key', requireAuth, async (req: Request, res: Respo
 });
 
 export default router;
-

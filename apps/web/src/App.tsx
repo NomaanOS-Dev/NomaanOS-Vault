@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { VaultProvider } from './context/VaultContext';
 import { LoginPage } from './pages/LoginPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
 import { MasterPasswordSetupPage } from './pages/MasterPasswordSetupPage';
 import { VaultsDashboardPage } from './pages/VaultsDashboardPage';
 import { SendDashboardPage } from './pages/SendDashboardPage';
@@ -29,6 +30,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!user.emailVerified) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (!user.hasMasterPassword) {
@@ -79,6 +84,7 @@ export const App: React.FC = () => {
 
             {/* Auth Routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/setup-master-password" element={<MasterPasswordSetupPage />} />
 
             {/* Authenticated Application */}
