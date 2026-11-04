@@ -176,6 +176,7 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
       },
     });
   } catch (error: any) {
+    console.error('REGISTRATION ERROR STACK:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
@@ -293,6 +294,7 @@ router.post('/verify-email', verifyRateLimiter, async (req: Request, res: Respon
       },
     });
   } catch (error: any) {
+    console.error('REGISTRATION ERROR STACK:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
@@ -353,6 +355,7 @@ router.post('/resend-verification', registerRateLimiter, async (req: Request, re
       message: 'If an unverified account exists for this email, a new verification link has been sent.',
     });
   } catch (error: any) {
+    console.error('REGISTRATION ERROR STACK:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
@@ -519,6 +522,7 @@ router.post('/dev-login', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    console.error('REGISTRATION ERROR STACK:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',
@@ -582,6 +586,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    console.error('REGISTRATION ERROR STACK:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',

@@ -1,4 +1,4 @@
-// Prisma SQLite schema for Password Manager (Local Development & Automated Testing)
+// Prisma schema for Password Manager
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -24,6 +24,9 @@ model User {
   folders          Folder[]
   auditEvents      AuditEvent[]
   sends            SecureSend[]
+  verificationTokens EmailVerificationToken[]
+
+  @@index([email])
 }
 
 model AuthenticationIdentity {
@@ -36,6 +39,7 @@ model AuthenticationIdentity {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerUserId])
+  @@index([userId])
 }
 
 model Vault {
@@ -50,6 +54,8 @@ model Vault {
   keyMetadata VaultKeyMetadata?
   items       VaultItem[]
   folders     Folder[]
+
+  @@index([userId])
 }
 
 model VaultKeyMetadata {
@@ -61,11 +67,12 @@ model VaultKeyMetadata {
   kdfParameters            String   // JSON string of { memory, iterations, parallelism }
   recoveryWrappedVaultKey  String?  // Vault key wrapped with Recovery Key
   recoveryMetadata         String?  // Recovery verification hash / salt JSON
-  hint                     String?  // Optional non-sensitive master password hint
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
   vault                    Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+
+  @@index([vaultId])
 }
 
 model VaultItem {
@@ -85,6 +92,12 @@ model VaultItem {
   vault            Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   folder           Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([vaultId])
+  @@index([folderId])
+  @@index([itemType])
+  @@index([deletedAt])
 }
 
 model Folder {
@@ -100,6 +113,8 @@ model Folder {
   items     VaultItem[]
 
   @@unique([vaultId, name])
+  @@index([userId])
+  @@index([vaultId])
 }
 
 model AuditEvent {
@@ -111,6 +126,9 @@ model AuditEvent {
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // Day 2 Models: Secure Send
@@ -137,6 +155,10 @@ model SecureSend {
   recipients         SendRecipient[]
   accessLogs         SendAccess[]
   file               SendFile?
+
+  @@index([userId])
+  @@index([publicTokenHash])
+  @@index([expiresAt])
 }
 
 model SendRecipient {
@@ -151,6 +173,8 @@ model SendRecipient {
   send             SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
 
   @@unique([sendId, normalizedEmail])
+  @@index([sendId])
+  @@index([normalizedEmail])
 }
 
 model SendAccess {
@@ -162,6 +186,9 @@ model SendAccess {
   accessedAt DateTime   @default(now())
 
   send       SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@index([sendId])
+  @@index([accessedAt])
 }
 
 model SendFile {
@@ -174,4 +201,19 @@ model SendFile {
   createdAt        DateTime   @default(now())
 
   send             SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }

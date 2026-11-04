@@ -10,7 +10,7 @@ const isSqlite = dbUrl.startsWith('file:') || dbUrl.includes('.db');
 
 console.log(`Setting up database (Target: ${isSqlite ? 'SQLite' : 'PostgreSQL'})...`);
 
-const schemaPath = isSqlite ? 'prisma/schema.sqlite.prisma' : 'prisma/schema.prisma';
+const schemaPath = isSqlite ? 'prisma/schema.prisma' : 'prisma/schema.postgresql.prisma';
 
 try {
   console.log(`Generating Prisma Client using ${schemaPath}...`);
