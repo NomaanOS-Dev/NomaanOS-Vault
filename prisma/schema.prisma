@@ -1,0 +1,204 @@
+// Prisma schema for Password Manager
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String                   @id @default(uuid())
+  username         String
+  email            String                   @unique
+  emailVerified    Boolean                  @default(false)
+  profileImage     String?
+  onboardingDismissed Boolean               @default(false)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  
+  identities       AuthenticationIdentity[]
+  vaults           Vault[]
+  vaultItems       VaultItem[]
+  folders          Folder[]
+  auditEvents      AuditEvent[]
+  sends            SecureSend[]
+
+  @@index([email])
+}
+
+model AuthenticationIdentity {
+  id             String   @id @default(uuid())
+  userId         String
+  provider       String   // e.g., 'google'
+  providerUserId String   // Google sub/id
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+model Vault {
+  id          String             @id @default(uuid())
+  userId      String
+  name        String             @default("My vault")
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  keyMetadata VaultKeyMetadata?
+  items       VaultItem[]
+  folders     Folder[]
+
+  @@index([userId])
+}
+
+model VaultKeyMetadata {
+  id                       String   @id @default(uuid())
+  vaultId                  String   @unique
+  encryptedVaultKey        String   // Client-encrypted vault key using Master Password derived key
+  masterPasswordSalt       String   // Salt used for Argon2id key derivation
+  kdfAlgorithm             String   @default("Argon2id")
+  kdfParameters            String   // JSON string of { memory, iterations, parallelism }
+  recoveryWrappedVaultKey  String?  // Vault key wrapped with Recovery Key
+  recoveryMetadata         String?  // Recovery verification hash / salt JSON
+  hint                     String?  // Optional non-sensitive master password hint
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  vault                    Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+
+  @@index([vaultId])
+}
+
+model VaultItem {
+  id               String    @id @default(uuid())
+  vaultId          String
+  userId           String
+  itemName         String    // Unencrypted or client-searchable display label
+  itemType         String    @default("LOGIN") // LOGIN, CARD, IDENTITY, SECURE_NOTE, SSH_KEY
+  encryptedPayload String    // JSON containing ciphertext, iv, authTag of the sensitive payload
+  folderId         String?
+  isFavorite       Boolean   @default(false)
+  isArchived       Boolean   @default(false)
+  deletedAt        DateTime? // If set, item is in Trash
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  vault            Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder           Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([vaultId])
+  @@index([folderId])
+  @@index([itemType])
+  @@index([deletedAt])
+}
+
+model Folder {
+  id        String      @id @default(uuid())
+  userId    String
+  vaultId   String
+  name      String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vault     Vault       @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  items     VaultItem[]
+
+  @@unique([vaultId, name])
+  @@index([userId])
+  @@index([vaultId])
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventType String   // LOGIN_SUCCESS, VAULT_UNLOCKED, MASTER_PW_SET, ITEM_CREATED, ITEM_DELETED, etc.
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Day 2 Models: Secure Send
+
+model SecureSend {
+  id                 String          @id @default(uuid())
+  userId             String
+  publicTokenHash    String          @unique
+  sendType           String          // 'TEXT' or 'FILE'
+  name               String
+  encryptedPayload   String?         // Text sends: ciphertext and iv JSON
+  hideTextByDefault  Boolean         @default(false)
+  expiresAt          DateTime
+  maxAccessCount     Int?
+  currentAccessCount Int             @default(0)
+  passwordHash       String?
+  recipientPolicy    String          @default("ANYONE") // 'ANYONE', 'SPECIFIC', 'PASSWORD'
+  hideSenderEmail    Boolean         @default(false)
+  revokedAt          DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients         SendRecipient[]
+  accessLogs         SendAccess[]
+  file               SendFile?
+
+  @@index([userId])
+  @@index([publicTokenHash])
+  @@index([expiresAt])
+}
+
+model SendRecipient {
+  id               String     @id @default(uuid())
+  sendId           String
+  normalizedEmail  String
+  verificationCode String?
+  codeExpiresAt    DateTime?
+  isVerified       Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+
+  send             SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@unique([sendId, normalizedEmail])
+  @@index([sendId])
+  @@index([normalizedEmail])
+}
+
+model SendAccess {
+  id         String     @id @default(uuid())
+  sendId     String
+  status     String     // 'SUCCESS', 'FAILED_PASSWORD', 'FAILED_EMAIL', 'EXPIRED', 'LIMIT_REACHED'
+  ipAddress  String?
+  userAgent  String?
+  accessedAt DateTime   @default(now())
+
+  send       SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+
+  @@index([sendId])
+  @@index([accessedAt])
+}
+
+model SendFile {
+  id               String     @id @default(uuid())
+  sendId           String     @unique
+  originalFileName String
+  encryptedSize    Int
+  mimeType         String     @default("application/octet-stream")
+  storagePath      String
+  createdAt        DateTime   @default(now())
+
+  send             SecureSend @relation(fields: [sendId], references: [id], onDelete: Cascade)
+}
