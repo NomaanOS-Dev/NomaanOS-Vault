@@ -34,3 +34,4 @@ else
 fi
 
 echo "==> [NomaanOS Vault] Database restore completed successfully!"
+

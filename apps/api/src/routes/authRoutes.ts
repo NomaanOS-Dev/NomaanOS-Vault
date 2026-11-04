@@ -99,11 +99,11 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if user already exists
-    let user = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    if (user && user.emailVerified) {
+    if (existingUser && existingUser.emailVerified) {
       // Avoid revealing whether account exists while acknowledging receipt
       return res.json({
         success: true,
@@ -111,52 +111,60 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
       });
     }
 
-    if (!user) {
-      user = await prisma.user.create({
+    const { rawToken } = await prisma.$transaction(async (tx) => {
+      let user = await tx.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            username: name,
+            email: normalizedEmail,
+            emailVerified: false,
+          },
+        });
+      } else {
+        // Update name if changed
+        user = await tx.user.update({
+          where: { id: user.id },
+          data: { username: name },
+        });
+      }
+
+      // Invalidate existing tokens for this user
+      await tx.emailVerificationToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      // Generate cryptographically secure random token (32 bytes hex)
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await tx.emailVerificationToken.create({
         data: {
-          username: name,
-          email: normalizedEmail,
-          emailVerified: false,
+          userId: user.id,
+          tokenHash,
+          expiresAt,
         },
       });
-    } else {
-      // Update name if changed
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { username: name },
+
+      await tx.auditEvent.create({
+        data: {
+          userId: user.id,
+          eventType: 'REGISTRATION_INITIATED',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
       });
-    }
 
-    // Invalidate existing tokens for this user
-    await prisma.emailVerificationToken.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-
-    // Generate cryptographically secure random token (32 bytes hex)
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt,
-      },
+      return { rawToken };
     });
 
     // Send transactional verification email
     await emailService.sendVerificationEmail(normalizedEmail, rawToken, name);
-
-    await prisma.auditEvent.create({
-      data: {
-        userId: user.id,
-        eventType: 'REGISTRATION_INITIATED',
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
 
     return res.status(201).json({
       success: true,
@@ -315,22 +323,26 @@ router.post('/resend-verification', registerRateLimiter, async (req: Request, re
     });
 
     if (user && !user.emailVerified) {
-      // Invalidate existing tokens
-      await prisma.emailVerificationToken.updateMany({
-        where: { userId: user.id, usedAt: null },
-        data: { usedAt: new Date() },
-      });
+      const rawToken = await prisma.$transaction(async (tx) => {
+        // Invalidate existing tokens
+        await tx.emailVerificationToken.updateMany({
+          where: { userId: user.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
 
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const raw = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      await prisma.emailVerificationToken.create({
-        data: {
-          userId: user.id,
-          tokenHash,
-          expiresAt,
-        },
+        await tx.emailVerificationToken.create({
+          data: {
+            userId: user.id,
+            tokenHash,
+            expiresAt,
+          },
+        });
+
+        return raw;
       });
 
       await emailService.sendVerificationEmail(normalizedEmail, rawToken, user.username);

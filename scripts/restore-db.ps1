@@ -26,3 +26,4 @@ if ($confirm -notmatch "^[Yy]$") {
 
 Get-Content -Path $BackupFile | docker exec -i $ContainerName psql -U $DbUser -d $DbName
 Write-Host "==> [NomaanOS Vault] Database restore completed successfully!" -ForegroundColor Green
+

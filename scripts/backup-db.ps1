@@ -30,3 +30,4 @@ if ($runningContainers -contains $ContainerName) {
   Write-Warning "Container $ContainerName is not currently running. Ensure container is active."
   exit 1
 }
+

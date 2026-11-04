@@ -32,3 +32,4 @@ fi
 BACKUP_SIZE=$(ls -lh "${BACKUP_FILE}" | awk '{print $5}')
 echo "==> [NomaanOS Vault] Backup completed successfully!"
 echo "    Output: ${BACKUP_FILE} (${BACKUP_SIZE})"
+

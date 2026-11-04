@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
+import crypto from 'crypto';
 import { app } from '../src/index';
 import { prisma } from '../src/database/prisma';
 
@@ -134,5 +135,83 @@ describe('Account Registration & Email Verification Tests', () => {
       .set('Authorization', `Bearer ${userSessionToken}`);
     expect(keysRes.status).toBe(200);
     expect(keysRes.body.data.hint).toBeUndefined();
+  });
+
+  it('7. VALIDATION: Rejects invalid inputs (empty name, malformed email)', async () => {
+    const badNameRes = await request(app)
+      .post('/api/auth/register')
+      .send({ name: '', email: 'valid@example.com' });
+    expect(badNameRes.status).toBe(400);
+    expect(badNameRes.body.error).toBe('VALIDATION_ERROR');
+
+    const badEmailRes = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Valid Name', email: 'not-an-email' });
+    expect(badEmailRes.status).toBe(400);
+    expect(badEmailRes.body.error).toBe('VALIDATION_ERROR');
+  });
+
+  it('8. SECURITY: Registration with already verified email returns 200 without duplicate account', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Duplicate Test', email: testEmail });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // Should NOT expose a dev verification token for already verified email
+    expect(res.body.data?.devVerificationToken).toBeUndefined();
+  });
+
+  it('9. Re-registering an unverified email issues a new token and invalidates previous token', async () => {
+    const unverifiedEmail2 = `re.register.${timestamp}@testvault.io`;
+    const reg1 = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'User Initial', email: unverifiedEmail2 });
+    expect(reg1.status).toBe(201);
+    const token1 = reg1.body.data.devVerificationToken;
+
+    const reg2 = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'User Updated', email: unverifiedEmail2 });
+    expect(reg2.status).toBe(201);
+    const token2 = reg2.body.data.devVerificationToken;
+
+    expect(token1).not.toBe(token2);
+
+    // Old token should now be invalidated
+    const verifyOld = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ token: token1 });
+    expect(verifyOld.status).toBe(400);
+    expect(verifyOld.body.error).toBe('TOKEN_ALREADY_USED');
+
+    // New token should work
+    const verifyNew = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ token: token2 });
+    expect(verifyNew.status).toBe(200);
+    expect(verifyNew.body.data.user.emailVerified).toBe(true);
+  });
+
+  it('10. SECURITY: Expired token is rejected', async () => {
+    const expiredEmail = `expired.${timestamp}@testvault.io`;
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Expired User', email: expiredEmail });
+    expect(reg.status).toBe(201);
+    const rawToken = reg.body.data.devVerificationToken;
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // Manually backdate the token expiration in DB to simulate expired token
+    await prisma.emailVerificationToken.update({
+      where: { tokenHash },
+      data: { expiresAt: new Date(Date.now() - 3600 * 1000) },
+    });
+
+    const verifyExpired = await request(app)
+      .post('/api/auth/verify-email')
+      .send({ token: rawToken });
+    expect(verifyExpired.status).toBe(400);
+    expect(verifyExpired.body.error).toBe('TOKEN_EXPIRED');
   });
 });

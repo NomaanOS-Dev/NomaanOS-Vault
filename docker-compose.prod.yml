@@ -97,3 +97,4 @@ volumes:
     name: nomaanos_vault_postgres_data
   send_storage:
     name: nomaanos_vault_send_storage
+

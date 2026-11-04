@@ -175,3 +175,4 @@ To restore from an existing backup:
 Encrypted files uploaded via Secure Send are stored in the Docker volume `nomaanos_vault_send_storage`.
 - Expired or access-exhausted Send files are automatically purged by the server background cleaner.
 - The volume remains isolated within Docker and is not directly accessible to unauthenticated web requests.
+
