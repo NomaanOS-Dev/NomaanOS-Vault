@@ -10,14 +10,25 @@ import {
   DEFAULT_PASSPHRASE_OPTIONS,
   DEFAULT_USERNAME_OPTIONS,
 } from '../lib/generator';
-import { RefreshCw, Copy, Check, X } from 'lucide-react';
+import {
+  RefreshCw,
+  Copy,
+  Check,
+  X,
+  Sparkles,
+  KeyRound,
+  Type,
+  AtSign,
+} from 'lucide-react';
 
 export const GeneratorPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'password' | 'passphrase' | 'username'>('password');
 
   // Options states
   const [pwdOptions, setPwdOptions] = useState<GeneratorOptions>(DEFAULT_GENERATOR_OPTIONS);
-  const [passphraseOptions, setPassphraseOptions] = useState<PassphraseOptions>(DEFAULT_PASSPHRASE_OPTIONS);
+  const [passphraseOptions, setPassphraseOptions] = useState<PassphraseOptions>(
+    DEFAULT_PASSPHRASE_OPTIONS
+  );
   const [usernameOptions, setUsernameOptions] = useState<UsernameOptions>(DEFAULT_USERNAME_OPTIONS);
 
   // Output states
@@ -45,76 +56,115 @@ export const GeneratorPage: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Colorize password characters for readability (numbers blue, special cyan)
+  // Colorize password characters for visual entropy analysis
   const renderFormattedPassword = (pwd: string) => {
     return pwd.split('').map((char, idx) => {
       if (/[0-9]/.test(char)) {
         return (
-          <span key={idx} className="text-blue-400 font-semibold">
+          <span key={idx} className="text-[#168568] font-bold">
             {char}
           </span>
         );
       } else if (/[^A-Za-z0-9]/.test(char)) {
         return (
-          <span key={idx} className="text-amber-400 font-semibold">
+          <span key={idx} className="text-amber-600 font-bold">
             {char}
           </span>
         );
       }
-      return <span key={idx}>{char}</span>;
+      return (
+        <span key={idx} className="text-[#202923]">
+          {char}
+        </span>
+      );
     });
   };
 
+  // Calculate entropy strength score
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return { score: 0, label: 'Empty', color: 'bg-slate-300' };
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 14) score++;
+    if (pwd.length >= 20) score++;
+    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+
+    if (score <= 2) return { score: 1, label: 'Weak', color: 'bg-red-500' };
+    if (score <= 4) return { score: 2, label: 'Fair', color: 'bg-amber-500' };
+    if (score <= 5) return { score: 3, label: 'Strong', color: 'bg-blue-600' };
+    return { score: 4, label: 'Exceptional (Military Grade)', color: 'bg-[#168568]' };
+  };
+
+  const strength = getPasswordStrength(generatedValue);
+
   return (
-    <div className="flex-1 bg-[#0a0f1d] p-8 overflow-y-auto">
+    <div className="flex-1 bg-[#F7F8F5] p-4 sm:p-8 overflow-y-auto min-w-0">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Tab Header matching Screenshots 9 & 10 */}
-        <div className="flex items-center bg-[#131d31] p-1 rounded-xl border border-[#1f2e4d]">
+        {/* Header Title */}
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#202923] tracking-tight">
+            Password & Credential Generator
+          </h1>
+          <p className="text-xs sm:text-sm text-[#78827B] mt-1">
+            Generate cryptographically random passwords, memorable passphrases, and secure username aliases.
+          </p>
+        </div>
+
+        {/* Tab Selection Header */}
+        <div className="flex items-center bg-[#E5E9E5]/60 p-1 rounded-2xl border border-[#E5E9E5]">
           <button
             onClick={() => setActiveTab('password')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-150 flex items-center justify-center gap-1.5 ${
               activeTab === 'password'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-[#168568] shadow-subtle'
+                : 'text-[#78827B] hover:text-[#202923]'
             }`}
           >
-            Password
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Password</span>
           </button>
           <button
             onClick={() => setActiveTab('passphrase')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-150 flex items-center justify-center gap-1.5 ${
               activeTab === 'passphrase'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-[#168568] shadow-subtle'
+                : 'text-[#78827B] hover:text-[#202923]'
             }`}
           >
-            Passphrase
+            <Type className="w-3.5 h-3.5" />
+            <span>Passphrase</span>
           </button>
           <button
             onClick={() => setActiveTab('username')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-150 flex items-center justify-center gap-1.5 ${
               activeTab === 'username'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white text-[#168568] shadow-subtle'
+                : 'text-[#78827B] hover:text-[#202923]'
             }`}
           >
-            Username
+            <AtSign className="w-3.5 h-3.5" />
+            <span>Username</span>
           </button>
         </div>
 
-        {/* Info Banner */}
+        {/* Info Tip Banner */}
         {!infoDismissed && (
-          <div className="p-4 bg-blue-600/15 border border-blue-500/30 rounded-xl relative flex items-start justify-between">
-            <div>
-              <h4 className="text-sm font-semibold text-white mb-0.5">Quickly create passwords</h4>
-              <p className="text-xs text-slate-300">
-                Easily create strong and unique passwords by clicking on 🔄 to help you keep your logins
-                secure.
-              </p>
+          <div className="p-4 bg-[#E7F4EF] border border-[#B7E3D6] rounded-2xl flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-[#168568] shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-[#168568]">High-Entropy Generation</h4>
+                <p className="text-[11px] text-[#202923]/80 leading-relaxed mt-0.5">
+                  Values are generated on this device using Web Cryptography API random entropy.
+                  They are never sent to a server.
+                </p>
+              </div>
             </div>
             <button
               onClick={() => setInfoDismissed(true)}
-              className="text-slate-400 hover:text-white ml-4 p-1"
+              className="text-[#78827B] hover:text-[#202923] p-1"
             >
               <X className="w-4 h-4" />
             </button>
@@ -122,194 +172,175 @@ export const GeneratorPage: React.FC = () => {
         )}
 
         {/* Prominent Generated Display Box */}
-        <div className="p-5 bg-[#131d31] border border-[#1f2e4d] rounded-xl flex items-center justify-between shadow-lg">
-          <div className="font-mono text-base tracking-wider break-all select-all text-slate-100 pr-4">
-            {activeTab === 'password'
-              ? renderFormattedPassword(generatedValue)
-              : generatedValue}
+        <div className="bg-white border border-[#E5E9E5] rounded-3xl p-5 sm:p-6 shadow-card space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="font-mono text-lg sm:text-2xl tracking-wide break-all select-all pr-2">
+              {activeTab === 'password'
+                ? renderFormattedPassword(generatedValue)
+                : generatedValue}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <button
+                onClick={regenerate}
+                title="Regenerate"
+                className="p-2.5 bg-[#F7F8F5] hover:bg-[#EAECE8] border border-[#E5E9E5] rounded-xl text-[#202923] transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleCopy}
+                title="Copy to clipboard"
+                className="px-4 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white rounded-xl text-xs font-semibold shadow-subtle transition-colors flex items-center gap-1.5"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={regenerate}
-              title="Regenerate"
-              className="p-2 bg-[#162036] hover:bg-[#1f2d48] border border-[#1f2e4d] rounded-lg text-slate-300 hover:text-white transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleCopy}
-              title="Copy to clipboard"
-              className="p-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white transition-colors flex items-center gap-1.5 text-xs font-medium"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-          </div>
+
+          {/* Strength Bar for Passwords */}
+          {activeTab === 'password' && (
+            <div className="pt-2 border-t border-[#E5E9E5]">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="text-[#78827B]">Entropy Strength:</span>
+                <span className="font-bold text-[#202923]">{strength.label}</span>
+              </div>
+              <div className="h-1.5 w-full bg-[#E5E9E5] rounded-full overflow-hidden flex gap-1">
+                {[1, 2, 3, 4].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-full flex-1 rounded-full transition-all duration-300 ${
+                      strength.score >= step ? strength.color : 'bg-transparent'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Configuration Sections */}
         {activeTab === 'password' && (
-          <div className="space-y-6">
-            {/* Length card */}
-            <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Options
-              </span>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-slate-300">Length</label>
-                  <span className="text-xs font-mono font-bold text-blue-400 bg-[#0e1628] border border-[#1f2e4d] px-2.5 py-1 rounded-md">
-                    {pwdOptions.length}
-                  </span>
+          <div className="space-y-4">
+            {/* Length Configuration Card */}
+            <div className="bg-white border border-[#E5E9E5] rounded-2xl p-5 space-y-4 shadow-subtle">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568]">
+                    Password Length
+                  </h3>
+                  <p className="text-[11px] text-[#78827B]">Recommended: 16+ characters</p>
                 </div>
-                <input
-                  type="range"
-                  min={5}
-                  max={128}
-                  value={pwdOptions.length}
-                  onChange={(e) =>
-                    setPwdOptions({ ...pwdOptions, length: parseInt(e.target.value, 10) })
-                  }
-                  className="w-full accent-blue-500 cursor-pointer"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Value must be between 5 and 128. Use 14 characters or more to generate a strong password.
-                </p>
+                <span className="text-sm font-mono font-bold text-[#168568] bg-[#E7F4EF] border border-[#B7E3D6] px-3 py-1 rounded-xl">
+                  {pwdOptions.length} characters
+                </span>
               </div>
+
+              <input
+                type="range"
+                min={5}
+                max={128}
+                value={pwdOptions.length}
+                onChange={(e) =>
+                  setPwdOptions({ ...pwdOptions, length: parseInt(e.target.value, 10) })
+                }
+                className="w-full accent-[#168568] cursor-pointer"
+              />
             </div>
 
-            {/* Include Card */}
-            <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Include
-              </span>
+            {/* Character Types Card */}
+            <div className="bg-white border border-[#E5E9E5] rounded-2xl p-5 space-y-3.5 shadow-subtle">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568]">
+                Character Types Included
+              </h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-300">
-                <label className="flex items-center gap-2 cursor-pointer bg-[#0e1628] border border-[#1f2e4d] p-3 rounded-lg">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-medium text-[#202923]">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#F7F8F5] border border-[#E5E9E5] p-3 rounded-xl hover:border-[#168568] transition-colors">
                   <input
                     type="checkbox"
                     checked={pwdOptions.useUpper}
                     onChange={(e) =>
                       setPwdOptions({ ...pwdOptions, useUpper: e.target.checked })
                     }
-                    className="rounded bg-[#131d31] border-[#1f2e4d] text-blue-600"
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
                   />
-                  <span>A-Z</span>
+                  <span>A–Z Uppercase</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer bg-[#0e1628] border border-[#1f2e4d] p-3 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#F7F8F5] border border-[#E5E9E5] p-3 rounded-xl hover:border-[#168568] transition-colors">
                   <input
                     type="checkbox"
                     checked={pwdOptions.useLower}
                     onChange={(e) =>
                       setPwdOptions({ ...pwdOptions, useLower: e.target.checked })
                     }
-                    className="rounded bg-[#131d31] border-[#1f2e4d] text-blue-600"
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
                   />
-                  <span>a-z</span>
+                  <span>a–z Lowercase</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer bg-[#0e1628] border border-[#1f2e4d] p-3 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#F7F8F5] border border-[#E5E9E5] p-3 rounded-xl hover:border-[#168568] transition-colors">
                   <input
                     type="checkbox"
                     checked={pwdOptions.useNumbers}
                     onChange={(e) =>
                       setPwdOptions({ ...pwdOptions, useNumbers: e.target.checked })
                     }
-                    className="rounded bg-[#131d31] border-[#1f2e4d] text-blue-600"
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
                   />
-                  <span>0-9</span>
+                  <span>0–9 Numbers</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer bg-[#0e1628] border border-[#1f2e4d] p-3 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#F7F8F5] border border-[#E5E9E5] p-3 rounded-xl hover:border-[#168568] transition-colors">
                   <input
                     type="checkbox"
                     checked={pwdOptions.useSpecial}
                     onChange={(e) =>
                       setPwdOptions({ ...pwdOptions, useSpecial: e.target.checked })
                     }
-                    className="rounded bg-[#131d31] border-[#1f2e4d] text-blue-600"
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
                   />
-                  <span>!@#$%^&*</span>
+                  <span>!@#$% Symbols</span>
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Minimum numbers
-                  </label>
+              {/* Special options */}
+              <div className="pt-2 border-t border-[#E5E9E5] flex items-center justify-between text-xs">
+                <label className="flex items-center gap-2 cursor-pointer text-[#202923]">
                   <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={pwdOptions.minNumbers}
+                    type="checkbox"
+                    checked={pwdOptions.avoidAmbiguous}
                     onChange={(e) =>
-                      setPwdOptions({
-                        ...pwdOptions,
-                        minNumbers: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
+                      setPwdOptions({ ...pwdOptions, avoidAmbiguous: e.target.checked })
                     }
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100"
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Minimum special
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={pwdOptions.minSpecial}
-                    onChange={(e) =>
-                      setPwdOptions({
-                        ...pwdOptions,
-                        minSpecial: Math.max(0, parseInt(e.target.value, 10) || 0),
-                      })
-                    }
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100"
-                  />
-                </div>
+                  <span>Avoid ambiguous characters (e.g. 0, O, l, 1, I)</span>
+                </label>
               </div>
-
-              <label className="flex items-center gap-2.5 cursor-pointer pt-2 select-none">
-                <input
-                  type="checkbox"
-                  checked={pwdOptions.avoidAmbiguous}
-                  onChange={(e) =>
-                    setPwdOptions({ ...pwdOptions, avoidAmbiguous: e.target.checked })
-                  }
-                  className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600"
-                />
-                <span className="text-xs text-slate-300">
-                  Avoid ambiguous characters (e.g. 0, O, I, l, 1)
-                </span>
-              </label>
             </div>
           </div>
         )}
 
-        {/* Passphrase Mode (Screenshot 10) */}
+        {/* Passphrase Tab */}
         {activeTab === 'passphrase' && (
-          <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Options
-            </span>
+          <div className="bg-white border border-[#E5E9E5] rounded-2xl p-5 space-y-4 shadow-subtle">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568]">
+              Passphrase Settings
+            </h3>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-300">Number of words</label>
-                <span className="text-xs font-mono font-bold text-blue-400 bg-[#0e1628] border border-[#1f2e4d] px-2.5 py-1 rounded-md">
-                  {passphraseOptions.numWords}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-[#202923]">Word Count</label>
+                <span className="text-xs font-mono font-bold text-[#168568] bg-[#E7F4EF] border border-[#B7E3D6] px-2.5 py-0.5 rounded-lg">
+                  {passphraseOptions.numWords} words
                 </span>
               </div>
               <input
                 type="range"
                 min={3}
-                max={20}
+                max={15}
                 value={passphraseOptions.numWords}
                 onChange={(e) =>
                   setPassphraseOptions({
@@ -317,131 +348,95 @@ export const GeneratorPage: React.FC = () => {
                     numWords: parseInt(e.target.value, 10),
                   })
                 }
-                className="w-full accent-blue-500 cursor-pointer"
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Value must be between 3 and 20. Use 4 words or more to generate a strong passphrase.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Word separator
-              </label>
-              <input
-                type="text"
-                value={passphraseOptions.separator}
-                onChange={(e) =>
-                  setPassphraseOptions({ ...passphraseOptions, separator: e.target.value })
-                }
-                placeholder="-"
-                maxLength={4}
-                className="w-32 bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100"
+                className="w-full accent-[#168568] cursor-pointer"
               />
             </div>
 
-            <div className="space-y-2 pt-2">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={passphraseOptions.capitalize}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-[#202923] mb-1">
+                  Word Separator
+                </label>
+                <select
+                  value={passphraseOptions.separator}
                   onChange={(e) =>
-                    setPassphraseOptions({
-                      ...passphraseOptions,
-                      capitalize: e.target.checked,
-                    })
+                    setPassphraseOptions({ ...passphraseOptions, separator: e.target.value })
                   }
-                  className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600"
-                />
-                <span className="text-xs text-slate-300">Capitalize</span>
-              </label>
+                  className="w-full bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
+                >
+                  <option value="-">Hyphen (-)</option>
+                  <option value=" ">Space ( )</option>
+                  <option value="_">Underscore (_)</option>
+                  <option value=".">Period (.)</option>
+                  <option value="/">Slash (/)</option>
+                </select>
+              </div>
 
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={passphraseOptions.includeNumber}
-                  onChange={(e) =>
-                    setPassphraseOptions({
-                      ...passphraseOptions,
-                      includeNumber: e.target.checked,
-                    })
-                  }
-                  className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600"
-                />
-                <span className="text-xs text-slate-300">Include number</span>
-              </label>
+              <div className="flex flex-col justify-end space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-[#202923]">
+                  <input
+                    type="checkbox"
+                    checked={passphraseOptions.capitalize}
+                    onChange={(e) =>
+                      setPassphraseOptions({
+                        ...passphraseOptions,
+                        capitalize: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
+                  />
+                  <span>Capitalize each word</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-[#202923]">
+                  <input
+                    type="checkbox"
+                    checked={passphraseOptions.includeNumber}
+                    onChange={(e) =>
+                      setPassphraseOptions({
+                        ...passphraseOptions,
+                        includeNumber: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-[#168568] focus:ring-[#168568]"
+                  />
+                  <span>Append random number</span>
+                </label>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Username Mode */}
+        {/* Username Tab */}
         {activeTab === 'username' && (
-          <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Username Options
-            </span>
+          <div className="bg-white border border-[#E5E9E5] rounded-2xl p-5 space-y-4 shadow-subtle">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568]">
+              Username Format
+            </h3>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setUsernameOptions({ ...usernameOptions, type: 'word' })}
-                className={`p-3 rounded-lg border text-left transition-colors ${
-                  usernameOptions.type === 'word'
-                    ? 'bg-blue-600/15 border-blue-500 text-blue-300'
-                    : 'bg-[#0e1628] border-[#1f2e4d] text-slate-400'
-                }`}
-              >
-                <span className="block text-xs font-bold">Word-Based</span>
-                <span className="text-[11px] opacity-75">e.g. swift_falcon_42</span>
-              </button>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-[#202923]">
+                <input
+                  type="radio"
+                  name="userType"
+                  checked={usernameOptions.type === 'word'}
+                  onChange={() => setUsernameOptions({ ...usernameOptions, type: 'word' })}
+                  className="text-[#168568] focus:ring-[#168568]"
+                />
+                <span>Memorable Random Word Username</span>
+              </label>
 
-              <button
-                type="button"
-                onClick={() => setUsernameOptions({ ...usernameOptions, type: 'random' })}
-                className={`p-3 rounded-lg border text-left transition-colors ${
-                  usernameOptions.type === 'random'
-                    ? 'bg-blue-600/15 border-blue-500 text-blue-300'
-                    : 'bg-[#0e1628] border-[#1f2e4d] text-slate-400'
-                }`}
-              >
-                <span className="block text-xs font-bold">Random String</span>
-                <span className="text-[11px] opacity-75">e.g. h8k2m9p4</span>
-              </button>
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-[#202923]">
+                <input
+                  type="radio"
+                  name="userType"
+                  checked={usernameOptions.type === 'random'}
+                  onChange={() => setUsernameOptions({ ...usernameOptions, type: 'random' })}
+                  className="text-[#168568] focus:ring-[#168568]"
+                />
+                <span>Randomized Character String</span>
+              </label>
             </div>
-
-            {usernameOptions.type === 'word' && (
-              <div className="space-y-3 pt-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={usernameOptions.includeNumber}
-                    onChange={(e) =>
-                      setUsernameOptions({
-                        ...usernameOptions,
-                        includeNumber: e.target.checked,
-                      })
-                    }
-                    className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600"
-                  />
-                  <span className="text-xs text-slate-300">Include numbers</span>
-                </label>
-
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={usernameOptions.capitalize}
-                    onChange={(e) =>
-                      setUsernameOptions({
-                        ...usernameOptions,
-                        capitalize: e.target.checked,
-                      })
-                    }
-                    className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600"
-                  />
-                  <span className="text-xs text-slate-300">Capitalize words</span>
-                </label>
-              </div>
-            )}
           </div>
         )}
       </div>

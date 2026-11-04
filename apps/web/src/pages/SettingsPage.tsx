@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useVault } from '../context/VaultContext';
 import {
-  Settings,
   User,
   ShieldCheck,
   KeyRound,
@@ -65,14 +64,14 @@ export const SettingsPage: React.FC = () => {
   };
 
   const strength = getStrength(newPassword);
-  const strengthLabels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very strong'];
+  const strengthLabels = ['Too weak', 'Weak', 'Fair', 'Good', 'Strong', 'Exceptional'];
   const strengthColors = [
     'bg-red-500',
     'bg-red-500',
     'bg-amber-500',
     'bg-yellow-500',
-    'bg-blue-500',
-    'bg-emerald-500',
+    'bg-blue-600',
+    'bg-[#168568]',
   ];
 
   // Handle Profile Update
@@ -172,108 +171,107 @@ export const SettingsPage: React.FC = () => {
     : 'Recently';
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0a0f1d] overflow-y-auto">
+    <div className="flex-1 flex flex-col bg-[#F7F8F5] overflow-y-auto min-w-0">
       {/* Header */}
-      <div className="h-16 border-b border-[#1e293b] px-8 flex items-center justify-between shrink-0 bg-[#0c1322]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-            <Settings className="w-4 h-4" />
-          </div>
+      <div className="bg-white border-b border-[#E5E9E5] px-4 sm:px-8 py-5 shrink-0 shadow-subtle">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-sm font-bold text-white tracking-wide">Account & Settings</h1>
-            <p className="text-[11px] text-slate-400">
-              Manage your profile, encryption keys, and zero-knowledge security.
+            <h1 className="text-lg sm:text-xl font-bold text-[#202923] tracking-tight">
+              Account & Settings
+            </h1>
+            <p className="text-xs text-[#78827B] mt-0.5">
+              Manage your profile identity, zero-knowledge master password, and recovery keys.
             </p>
           </div>
+
+          <button
+            onClick={logout}
+            className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
+          </button>
         </div>
 
-        <button
-          onClick={logout}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
-        </button>
-      </div>
+        {/* Tab Navigation */}
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'profile'
+                ? 'bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6] shadow-subtle'
+                : 'bg-white text-[#78827B] border border-[#E5E9E5] hover:text-[#202923]'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Profile & Account</span>
+          </button>
 
-      {/* Settings Navigation Tabs */}
-      <div className="border-b border-[#1e293b] bg-[#0c1322]/50 px-8 flex items-center gap-6 text-xs font-medium">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`py-3.5 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'profile'
-              ? 'border-blue-500 text-blue-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <User className="w-4 h-4" />
-          <span>My Profile</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'security'
+                ? 'bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6] shadow-subtle'
+                : 'bg-white text-[#78827B] border border-[#E5E9E5] hover:text-[#202923]'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>Master Password</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`py-3.5 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'security'
-              ? 'border-blue-500 text-blue-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <Lock className="w-4 h-4" />
-          <span>Master Password</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('recovery')}
-          className={`py-3.5 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'recovery'
-              ? 'border-blue-500 text-blue-400 font-semibold'
-              : 'border-transparent text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          <KeyRound className="w-4 h-4" />
-          <span>Emergency Recovery Key</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('recovery')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === 'recovery'
+                ? 'bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6] shadow-subtle'
+                : 'bg-white text-[#78827B] border border-[#E5E9E5] hover:text-[#202923]'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Emergency Recovery Key</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Tab Content */}
-      <div className="p-8 max-w-4xl mx-auto w-full space-y-6">
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6">
         {/* ================= TAB 1: PROFILE ================= */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             {/* Profile Overview Card */}
-            <div className="bg-[#0f172a] border border-[#1e293b] rounded-2xl p-6 shadow-sm">
-              <h2 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-400" />
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card">
+              <h2 className="text-sm font-bold text-[#202923] mb-5 flex items-center gap-2">
+                <User className="w-4 h-4 text-[#168568]" />
                 <span>Profile Information</span>
               </h2>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pb-6 border-b border-[#1e293b]">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 pb-6 border-b border-[#E5E9E5]">
                 {user?.profileImage ? (
                   <img
                     src={user.profileImage}
                     alt={user.username}
-                    className="w-16 h-16 rounded-2xl border-2 border-blue-500/40 shadow-md object-cover"
+                    className="w-16 h-16 rounded-2xl border-2 border-[#B7E3D6] shadow-subtle object-cover"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-md">
+                  <div className="w-16 h-16 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] text-2xl font-bold shadow-subtle">
                     {user?.username?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
 
                 <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-white">{user?.username}</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base font-bold text-[#202923]">{user?.username}</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6]">
                       <ShieldCheck className="w-3 h-3" />
                       Verified
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                  <p className="text-xs text-[#78827B] flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" />
                     <span>{user?.email}</span>
                   </p>
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                  <p className="text-[11px] text-[#78827B] flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
                     <span>Member since {formattedDate}</span>
                   </p>
                 </div>
@@ -282,14 +280,14 @@ export const SettingsPage: React.FC = () => {
               {/* Edit Display Name Form */}
               <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
                 {profileSuccess && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-400 flex items-center gap-2">
+                  <div className="p-3 bg-[#E7F4EF] border border-[#B7E3D6] rounded-xl text-xs text-[#168568] font-semibold flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>Profile updated successfully!</span>
+                    <span>Profile display name updated successfully!</span>
                   </div>
                 )}
 
                 {profileError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-center gap-2">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{profileError}</span>
                   </div>
@@ -297,7 +295,7 @@ export const SettingsPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                       Display Name
                     </label>
                     <input
@@ -305,20 +303,20 @@ export const SettingsPage: React.FC = () => {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="Your full name"
-                      className="w-full bg-[#131d31] border border-[#1f2e4d] focus:border-blue-500 rounded-lg px-3.5 py-2 text-xs text-slate-200 outline-none transition-colors"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] outline-none"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                       Email Address (Locked)
                     </label>
                     <input
                       type="text"
                       disabled
                       value={user?.email || ''}
-                      className="w-full bg-[#131d31]/50 border border-[#1f2e4d]/50 rounded-lg px-3.5 py-2 text-xs text-slate-400 cursor-not-allowed outline-none"
+                      className="w-full bg-[#EAECE8] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-xs text-[#78827B] cursor-not-allowed outline-none"
                     />
                   </div>
                 </div>
@@ -327,48 +325,48 @@ export const SettingsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={profileSaving || displayName === user?.username}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium flex items-center gap-2 transition-colors shadow-sm"
+                    className="px-5 py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-subtle transition-colors"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    <span>{profileSaving ? 'Saving...' : 'Save Changes'}</span>
+                    <span>{profileSaving ? 'Saving...' : 'Save Profile'}</span>
                   </button>
                 </div>
               </form>
             </div>
 
             {/* Account Metadata & Security Identity */}
-            <div className="bg-[#0f172a] border border-[#1e293b] rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Fingerprint className="w-4 h-4 text-blue-400" />
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card space-y-4">
+              <h3 className="text-sm font-bold text-[#202923] flex items-center gap-2">
+                <Fingerprint className="w-4 h-4 text-[#168568]" />
                 <span>Authentication & Security Identity</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-3.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4">
+                  <span className="text-[10px] text-[#78827B] uppercase font-bold tracking-wider block mb-1">
                     Sign-in Provider
                   </span>
-                  <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span className="font-bold text-[#202923] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#168568]"></span>
                     Google OAuth 2.0 / OIDC
                   </span>
                 </div>
 
-                <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-3.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                    Vault Security Status
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4">
+                  <span className="text-[10px] text-[#78827B] uppercase font-bold tracking-wider block mb-1">
+                    Encryption Standards
                   </span>
-                  <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                  <span className="font-bold text-[#168568] flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     AES-256-GCM + Argon2id
                   </span>
                 </div>
 
-                <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-3.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
-                    Session Lock
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4">
+                  <span className="text-[10px] text-[#78827B] uppercase font-bold tracking-wider block mb-1">
+                    Vault Memory Status
                   </span>
-                  <span className="font-semibold text-slate-200">
+                  <span className="font-bold text-[#202923]">
                     {isVaultUnlocked ? 'Unlocked in Memory' : 'Locked'}
                   </span>
                 </div>
@@ -380,35 +378,35 @@ export const SettingsPage: React.FC = () => {
         {/* ================= TAB 2: MASTER PASSWORD ================= */}
         {activeTab === 'security' && (
           <div className="space-y-6">
-            <div className="bg-[#0f172a] border border-[#1e293b] rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                  <Lock className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
+                  <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-white">Change Master Password</h2>
-                  <p className="text-[11px] text-slate-400">
+                  <h2 className="text-base font-bold text-[#202923]">Change Master Password</h2>
+                  <p className="text-xs text-[#78827B]">
                     Re-encrypts your vault key with a new Master Password using Argon2id and fresh salt.
                   </p>
                 </div>
               </div>
 
-              <div className="mb-6 p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-300 leading-relaxed">
-                <strong>Zero-Knowledge Preservation:</strong> Changing your master password re-wraps
-                your symmetric Vault Key with a newly derived Argon2id key. None of your stored passwords
-                or encrypted items will be modified or lost.
+              <div className="mb-6 p-4 bg-[#E7F4EF]/60 border border-[#B7E3D6] rounded-2xl text-xs text-[#168568] leading-relaxed">
+                <strong>Zero-Knowledge Key Re-wrapping:</strong> Changing your master password
+                re-wraps your symmetric Vault Key with a newly derived Argon2id key. None of your stored
+                passwords or encrypted items will be modified or lost.
               </div>
 
               <form onSubmit={handleChangePassword} className="space-y-4">
                 {passwordSuccess && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-400 flex items-center gap-2">
+                  <div className="p-3.5 bg-[#E7F4EF] border border-[#B7E3D6] rounded-xl text-xs text-[#168568] font-semibold flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                     <span>Master password changed and vault keys updated successfully!</span>
                   </div>
                 )}
 
                 {passwordError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-center gap-2">
+                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     <span>{passwordError}</span>
                   </div>
@@ -416,7 +414,7 @@ export const SettingsPage: React.FC = () => {
 
                 {/* Current Master Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                     Current Master Password
                   </label>
                   <div className="relative">
@@ -425,13 +423,13 @@ export const SettingsPage: React.FC = () => {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Enter current master password"
-                      className="w-full bg-[#131d31] border border-[#1f2e4d] focus:border-blue-500 rounded-lg px-3.5 py-2 pr-10 text-xs text-slate-200 outline-none transition-colors"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm text-[#202923] outline-none"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowCurrent(!showCurrent)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
                     >
                       {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -440,7 +438,7 @@ export const SettingsPage: React.FC = () => {
 
                 {/* New Master Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                     New Master Password
                   </label>
                   <div className="relative">
@@ -448,14 +446,14 @@ export const SettingsPage: React.FC = () => {
                       type={showNew ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Minimum 8 characters (12+ recommended)"
-                      className="w-full bg-[#131d31] border border-[#1f2e4d] focus:border-blue-500 rounded-lg px-3.5 py-2 pr-10 text-xs text-slate-200 outline-none transition-colors"
+                      placeholder="Minimum 8 characters (14+ recommended)"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm text-[#202923] outline-none"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowNew(!showNew)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
                     >
                       {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -465,16 +463,14 @@ export const SettingsPage: React.FC = () => {
                   {newPassword && (
                     <div className="mt-2 space-y-1">
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Strength:</span>
-                        <span className="font-semibold text-slate-300">
-                          {strengthLabels[strength]}
-                        </span>
+                        <span className="text-[#78827B]">Strength:</span>
+                        <span className="font-bold text-[#202923]">{strengthLabels[strength]}</span>
                       </div>
-                      <div className="h-1.5 w-full bg-[#1f2e4d] rounded-full overflow-hidden flex gap-1">
+                      <div className="h-1.5 w-full bg-[#E5E9E5] rounded-full overflow-hidden flex gap-1">
                         {[1, 2, 3, 4, 5].map((lvl) => (
                           <div
                             key={lvl}
-                            className={`h-full flex-1 transition-colors ${
+                            className={`h-full flex-1 rounded-full transition-colors ${
                               strength >= lvl ? strengthColors[strength] : 'bg-transparent'
                             }`}
                           />
@@ -486,7 +482,7 @@ export const SettingsPage: React.FC = () => {
 
                 {/* Confirm New Password */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
                     Confirm New Master Password
                   </label>
                   <div className="relative">
@@ -495,13 +491,13 @@ export const SettingsPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Repeat new master password"
-                      className="w-full bg-[#131d31] border border-[#1f2e4d] focus:border-blue-500 rounded-lg px-3.5 py-2 pr-10 text-xs text-slate-200 outline-none transition-colors"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm text-[#202923] outline-none"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
                     >
                       {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -510,15 +506,15 @@ export const SettingsPage: React.FC = () => {
 
                 {/* Optional Hint */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Master Password Hint <span className="text-slate-500 font-normal">(optional)</span>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Master Password Hint <span className="text-[#78827B] font-normal">(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={hint}
                     onChange={(e) => setHint(e.target.value)}
-                    placeholder="A memory trigger (never include your actual password)"
-                    className="w-full bg-[#131d31] border border-[#1f2e4d] focus:border-blue-500 rounded-lg px-3.5 py-2 text-xs text-slate-200 outline-none transition-colors"
+                    placeholder="A memory trigger (never your actual password)"
+                    className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] rounded-xl px-3.5 py-2 text-xs sm:text-sm text-[#202923] outline-none"
                   />
                 </div>
 
@@ -526,10 +522,12 @@ export const SettingsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={passwordLoading}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-lg text-xs font-medium flex items-center gap-2 transition-colors shadow-sm"
+                    className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] text-white rounded-xl text-xs font-semibold shadow-subtle flex items-center gap-2 transition-colors"
                   >
                     <Lock className="w-3.5 h-3.5" />
-                    <span>{passwordLoading ? 'Re-encrypting Vault Keys...' : 'Change Master Password'}</span>
+                    <span>
+                      {passwordLoading ? 'Re-wrapping Vault Key...' : 'Change Master Password'}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -540,23 +538,23 @@ export const SettingsPage: React.FC = () => {
         {/* ================= TAB 3: EMERGENCY RECOVERY KEY ================= */}
         {activeTab === 'recovery' && (
           <div className="space-y-6">
-            <div className="bg-[#0f172a] border border-[#1e293b] rounded-2xl p-6 shadow-sm">
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <KeyRound className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
+                  <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-white">Emergency Recovery Key</h2>
-                  <p className="text-[11px] text-slate-400">
+                  <h2 className="text-base font-bold text-[#202923]">Emergency Recovery Key</h2>
+                  <p className="text-xs text-[#78827B]">
                     Zero-knowledge emergency recovery in case your Master Password is forgotten.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 leading-relaxed space-y-2 mb-6">
-                <div className="flex items-center gap-2 font-semibold text-amber-200">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 leading-relaxed space-y-1.5 mb-6">
+                <div className="flex items-center gap-1.5 font-bold text-amber-900">
                   <AlertTriangle className="w-4 h-4" />
-                  <span>Important Security Safeguard</span>
+                  <span>Important Zero-Knowledge Security Safeguard</span>
                 </div>
                 <p>
                   Because SecureVault operates under strict zero-knowledge encryption, nobody — not
@@ -566,7 +564,7 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               {recoveryError && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 flex items-center gap-2">
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   <span>{recoveryError}</span>
                 </div>
@@ -574,37 +572,37 @@ export const SettingsPage: React.FC = () => {
 
               {/* Newly Rotated Key Display Card */}
               {newRotatedKey ? (
-                <div className="p-5 bg-gradient-to-r from-blue-950/40 via-[#131d31] to-[#0f172a] border border-blue-500/40 rounded-2xl shadow-xl space-y-4">
+                <div className="p-6 bg-[#E7F4EF]/50 border border-[#B7E3D6] rounded-2xl shadow-subtle space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[#168568] flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" />
                       New Emergency Recovery Key Generated
                     </span>
                     <button
                       onClick={copyRecoveryKey}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                      className="px-3.5 py-1.5 bg-[#168568] hover:bg-[#126e56] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-subtle"
                     >
                       {recoveryCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{recoveryCopied ? 'Copied' : 'Copy'}</span>
+                      <span>{recoveryCopied ? 'Copied' : 'Copy Key'}</span>
                     </button>
                   </div>
 
-                  <div className="p-3 bg-[#0a0f1d] border border-[#1f2e4d] rounded-xl font-mono text-sm text-center text-blue-300 tracking-wider break-all select-all">
+                  <div className="p-4 bg-white border border-[#B7E3D6] rounded-xl font-mono text-sm sm:text-base font-bold text-center text-[#168568] tracking-wider break-all select-all shadow-subtle">
                     {newRotatedKey}
                   </div>
 
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-[#202923]/80 leading-relaxed">
                     Write down or store this key in a secure location (e.g. physical safe, password-protected USB).
                     Your old recovery key is now deactivated.
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-[#131d31] border border-[#1f2e4d] rounded-xl">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl">
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-200 mb-0.5">
+                    <h4 className="text-xs font-bold text-[#202923] mb-0.5">
                       Rotate Emergency Recovery Key
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-[#78827B]">
                       Generate a fresh 32-character recovery key and invalidate the previous one.
                     </p>
                   </div>
@@ -612,7 +610,7 @@ export const SettingsPage: React.FC = () => {
                   <button
                     onClick={() => setShowRotateConfirmModal(true)}
                     disabled={rotatingRecovery || !isVaultUnlocked}
-                    className="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors shrink-0"
+                    className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>{rotatingRecovery ? 'Rotating...' : 'Rotate Recovery Key'}</span>
@@ -626,35 +624,35 @@ export const SettingsPage: React.FC = () => {
 
       {/* Rotate Key Confirmation Dialog */}
       {showRotateConfirmModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#131d31] border border-[#1f2e4d] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 bg-[#202923]/45 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-modal space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Rotate Recovery Key?</h3>
-                <p className="text-xs text-slate-400">This action will invalidate your current key.</p>
+                <h3 className="text-base font-bold text-[#202923]">Rotate Recovery Key?</h3>
+                <p className="text-xs text-[#78827B]">This action will invalidate your current key.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-[#202923] leading-relaxed">
               Generating a new Emergency Recovery Key will immediately re-wrap your vault key and
               deactivate your previous recovery key. Be prepared to store the new key in a safe offline location.
             </p>
 
-            <div className="flex justify-end gap-2.5 pt-2">
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E5E9E5]">
               <button
                 type="button"
                 onClick={() => setShowRotateConfirmModal(false)}
-                className="px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-[#1a2948] transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78827B] hover:text-[#202923]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleRotateRecoveryKey}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-medium transition-colors shadow-sm"
+                className="px-5 py-2 bg-[#168568] hover:bg-[#126e56] text-white rounded-xl text-xs font-semibold transition-colors shadow-subtle"
               >
                 Yes, Rotate Key
               </button>
@@ -665,4 +663,3 @@ export const SettingsPage: React.FC = () => {
     </div>
   );
 };
-

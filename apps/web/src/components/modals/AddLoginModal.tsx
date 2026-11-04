@@ -15,8 +15,11 @@ import {
   Plus,
   Trash2,
   HelpCircle,
-  Settings,
   AlertTriangle,
+  KeyRound,
+  Globe,
+  ShieldCheck,
+  FileText,
 } from 'lucide-react';
 
 interface AddLoginModalProps {
@@ -217,30 +220,41 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="w-full max-w-xl bg-[#131d31] border border-[#1f2e4d] rounded-xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#202923]/45 backdrop-blur-sm p-0 sm:p-4 overflow-y-auto">
+      <div className="w-full sm:max-w-2xl bg-white sm:border border-[#E5E9E5] sm:rounded-2xl shadow-modal flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
         {/* Fixed Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1f2e4d] bg-[#131d31] shrink-0">
-          <h2 className="text-lg font-bold text-slate-100">
-            {itemToEdit ? 'Edit login' : 'Add login'}
-          </h2>
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#E5E9E5] bg-white shrink-0">
           <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-[#202923] tracking-tight">
+                {itemToEdit ? 'Edit Credentials' : 'Add Login Credentials'}
+              </h2>
+              <span className="text-[10px] text-[#168568] font-semibold uppercase tracking-wider block">
+                Zero-Knowledge Encrypted
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsFavorite(!isFavorite)}
               title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              className="text-slate-400 hover:text-amber-400 transition-colors p-1"
+              className="p-2 rounded-xl hover:bg-[#F3F5F2] text-[#78827B] hover:text-amber-500 transition-colors"
             >
               <Star
                 className={`w-5 h-5 ${
-                  isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'
+                  isFavorite ? 'text-amber-500 fill-amber-500' : 'text-[#78827B]'
                 }`}
               />
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+              className="p-2 rounded-xl text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2] transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -248,94 +262,102 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="overflow-y-auto p-6 space-y-6 flex-1">
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-5 flex-1">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-xs">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-red-700 text-xs">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {decrypting ? (
-            <div className="p-10 text-center text-xs text-slate-400">
-              <span className="inline-block animate-spin mr-2">⚙️</span>
+            <div className="p-12 text-center text-xs text-[#78827B]">
+              <span className="w-5 h-5 border-2 border-[#168568]/30 border-t-[#168568] rounded-full inline-block animate-spin mr-2 align-middle" />
               Decrypting login details in browser memory...
             </div>
           ) : (
-            <form id="login-form" onSubmit={handleSubmit} className="space-y-6">
-              {/* Section A: Item details */}
-              <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Item details
+            <form id="login-form" onSubmit={handleSubmit} className="space-y-5">
+              {/* Section A: Item Details */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Item Details</span>
                 </h3>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Item name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    placeholder="e.g. Google, GitHub, Netflix"
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                      Item Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={itemName}
+                      onChange={(e) => setItemName(e.target.value)}
+                      placeholder="e.g. Google, GitHub, Netflix, Work Portal"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Owner</label>
-                  <select
-                    disabled
-                    value={user?.email}
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-300 cursor-not-allowed opacity-90 focus:outline-none"
-                  >
-                    <option value={user?.email}>{user?.email}</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                      Vault Owner
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={user?.email || ''}
+                      className="w-full bg-[#EAECE8] border border-[#E5E9E5] rounded-xl px-3.5 py-2.5 text-xs text-[#78827B] cursor-not-allowed outline-none"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Folder</label>
-                  <select
-                    value={folderId}
-                    onChange={(e) => setFolderId(e.target.value)}
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500 transition-colors"
-                  >
-                    <option value="">-- Select --</option>
-                    <option value="">No folder</option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                      Folder
+                    </label>
+                    <select
+                      value={folderId}
+                      onChange={(e) => setFolderId(e.target.value)}
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none transition-all"
+                    >
+                      <option value="">No folder</option>
+                      {folders.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Section B: Login credentials */}
-              <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Login credentials
+              {/* Section B: Login Credentials */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Login Credentials</span>
                 </h3>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Username / Email
+                  </label>
                   <div className="relative">
                     <input
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Username or email address"
-                      className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 pr-10 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 pr-10 outline-none transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => copyToClipboard(username, 'username')}
                       title="Copy username"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#168568] p-1"
                     >
                       {copiedField === 'username' ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
+                        <Check className="w-4 h-4 text-[#168568]" />
                       ) : (
                         <Copy className="w-4 h-4" />
                       )}
@@ -344,29 +366,31 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Password
+                  </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 pr-20 focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder="Enter or generate password"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] font-mono placeholder-[#78827B]/60 pr-24 outline-none transition-all"
                     />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[#78827B]">
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         title={showPassword ? 'Hide password' : 'Show password'}
-                        className="p-1 text-slate-400 hover:text-slate-200"
+                        className="p-1 hover:text-[#202923]"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button
                         type="button"
                         onClick={handleQuickGenerate}
-                        title="Generate strong password"
-                        className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Quick generate random password"
+                        className="p-1 hover:text-[#168568] transition-colors"
                       >
                         <RefreshCw className="w-4 h-4" />
                       </button>
@@ -374,10 +398,10 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                         type="button"
                         onClick={() => copyToClipboard(password, 'password')}
                         title="Copy password"
-                        className="p-1 text-slate-400 hover:text-slate-200"
+                        className="p-1 hover:text-[#168568]"
                       >
                         {copiedField === 'password' ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
+                          <Check className="w-4 h-4 text-[#168568]" />
                         ) : (
                           <Copy className="w-4 h-4" />
                         )}
@@ -385,25 +409,26 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
-                    <p className="text-[11px] text-slate-400">
-                      Use the generator{' '}
+                    <p className="text-[11px] text-[#78827B]">
+                      Need custom parameters?{' '}
                       <button
                         type="button"
                         onClick={() => setIsGeneratorOpen(true)}
-                        className="text-blue-400 hover:underline inline-flex items-center gap-0.5"
+                        className="text-[#168568] font-semibold hover:underline inline-flex items-center gap-0.5"
                       >
-                        <RefreshCw className="w-3 h-3 inline" /> options
-                      </button>{' '}
-                      to create a strong unique password
+                        Open Password Generator
+                      </button>
                     </p>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center gap-1 mb-1.5">
-                    <label className="text-xs font-medium text-slate-300">Authenticator key</label>
-                    <span title="TOTP secret key for 2FA verification">
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                    <label className="text-xs font-semibold text-[#202923]">
+                      Authenticator Key (TOTP)
+                    </label>
+                    <span title="Base32 TOTP secret key for two-step verification codes">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#78827B] cursor-help" />
                     </span>
                   </div>
                   <div className="relative">
@@ -411,13 +436,13 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                       type={showTotp ? 'text' : 'password'}
                       value={totpSecret}
                       onChange={(e) => setTotpSecret(e.target.value)}
-                      placeholder="Base32 TOTP secret"
-                      className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 pr-10 focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder="e.g. JBSWY3DPEHPK3PXP"
+                      className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs text-[#202923] font-mono placeholder-[#78827B]/60 pr-10 outline-none transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setShowTotp(!showTotp)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
                     >
                       {showTotp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -425,10 +450,11 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                 </div>
               </div>
 
-              {/* Section C: Autofill options */}
-              <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Autofill options
+              {/* Section C: Website Addresses (Autofill URIs) */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Website Addresses (URIs)</span>
                 </h3>
 
                 <div className="space-y-2.5">
@@ -440,17 +466,15 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                           value={uri}
                           onChange={(e) => handleUriChange(index, e.target.value)}
                           placeholder="https://example.com"
-                          className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 pr-9 focus:outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all"
                         />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500">
-                          <Settings className="w-4 h-4" />
-                        </div>
                       </div>
                       {uris.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveUri(index)}
-                          className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+                          className="p-2 text-[#78827B] hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Remove URI"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -461,81 +485,88 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAddUri}
-                    className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 pt-1"
+                    className="text-xs text-[#168568] hover:text-[#126e56] font-semibold flex items-center gap-1.5 pt-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add website</span>
+                    <span>Add Another Website URI</span>
                   </button>
                 </div>
               </div>
 
-              {/* Section D: Additional options */}
-              <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                  Additional options
+              {/* Section D: Notes & Custom Fields */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 sm:p-5 space-y-3.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Notes & Additional Fields</span>
                 </h3>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Notes</label>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Encrypted Notes
+                  </label>
                   <textarea
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Encrypted notes or recovery codes..."
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                    placeholder="Secure recovery codes, PINs, or confidential notes..."
+                    className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all resize-none"
                   />
                 </div>
 
-                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
                   <input
                     type="checkbox"
                     checked={rePrompt}
                     onChange={(e) => setRePrompt(e.target.checked)}
-                    className="rounded bg-[#0e1628] border-[#1f2e4d] text-blue-600 focus:ring-0"
+                    className="w-4 h-4 rounded text-[#168568] border-[#E5E9E5] focus:ring-[#168568]"
                   />
-                  <span className="text-xs text-slate-300">Master password re-prompt</span>
+                  <span className="text-xs font-medium text-[#202923]">
+                    Require master password re-prompt to view password
+                  </span>
                 </label>
 
                 {/* Custom Fields */}
                 {customFields.length > 0 && (
-                  <div className="space-y-2.5 pt-2 border-t border-[#1f2e4d]">
-                    <span className="text-xs text-slate-400 font-medium">Custom Fields</span>
+                  <div className="space-y-2.5 pt-2 border-t border-[#E5E9E5]">
+                    <span className="text-xs text-[#202923] font-semibold block">Custom Fields</span>
                     {customFields.map((field, idx) => (
-                      <div key={field.id} className="flex items-center gap-2">
+                      <div key={field.id} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input
                           type="text"
                           value={field.name}
                           onChange={(e) => handleUpdateCustomField(idx, { name: e.target.value })}
                           placeholder="Field name"
-                          className="w-1/3 bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                          className="w-full sm:w-1/3 bg-white border border-[#E5E9E5] focus:border-[#168568] rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
                         />
                         <input
                           type={field.type === 'hidden' ? 'password' : 'text'}
                           value={field.value}
                           onChange={(e) => handleUpdateCustomField(idx, { value: e.target.value })}
-                          placeholder="Value"
-                          className="flex-1 bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                          placeholder="Field value"
+                          className="flex-1 bg-white border border-[#E5E9E5] focus:border-[#168568] rounded-xl px-3 py-2 text-xs text-[#202923] outline-none"
                         />
-                        <select
-                          value={field.type}
-                          onChange={(e) =>
-                            handleUpdateCustomField(idx, {
-                              type: e.target.value as 'text' | 'hidden' | 'boolean',
-                            })
-                          }
-                          className="bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-2 py-2 text-xs text-slate-300 focus:outline-none"
-                        >
-                          <option value="text">Text</option>
-                          <option value="hidden">Hidden</option>
-                          <option value="boolean">Boolean</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCustomField(idx)}
-                          className="p-1.5 text-slate-400 hover:text-red-400"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={field.type}
+                            onChange={(e) =>
+                              handleUpdateCustomField(idx, {
+                                type: e.target.value as 'text' | 'hidden' | 'boolean',
+                              })
+                            }
+                            className="bg-white border border-[#E5E9E5] rounded-xl px-2.5 py-2 text-xs text-[#202923] outline-none"
+                          >
+                            <option value="text">Text</option>
+                            <option value="hidden">Hidden</option>
+                            <option value="boolean">Boolean</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomField(idx)}
+                            className="p-2 text-[#78827B] hover:text-red-600 rounded-lg hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -544,10 +575,10 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddCustomField}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1"
+                  className="text-xs text-[#168568] hover:text-[#126e56] font-semibold flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add field</span>
+                  <span>Add Custom Field</span>
                 </button>
               </div>
             </form>
@@ -555,21 +586,28 @@ export const AddLoginModal: React.FC<AddLoginModalProps> = ({
         </div>
 
         {/* Fixed Footer */}
-        <div className="flex items-center justify-start gap-3 px-6 py-4 border-t border-[#1f2e4d] bg-[#131d31] shrink-0">
+        <div className="flex items-center justify-end gap-3 px-5 sm:px-6 py-4 border-t border-[#E5E9E5] bg-[#F7F8F5] shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-[#78827B] hover:text-[#202923] hover:bg-white border border-transparent hover:border-[#E5E9E5] transition-all"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             form="login-form"
             disabled={loading || decrypting}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-sm transition-colors shadow-lg shadow-blue-600/20 disabled:opacity-50"
+            className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white font-semibold rounded-xl text-xs sm:text-sm shadow-subtle transition-all disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? 'Encrypting & Saving...' : 'Save'}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-2.5 bg-[#162036] hover:bg-[#1e2d4d] text-slate-300 font-medium rounded-lg text-sm transition-colors border border-[#1f2e4d]"
-          >
-            Cancel
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Encrypting & Saving...</span>
+              </>
+            ) : (
+              <span>Save Credential</span>
+            )}
           </button>
         </div>
       </div>

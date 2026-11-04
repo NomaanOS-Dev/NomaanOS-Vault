@@ -17,20 +17,18 @@ import {
   UserSquare2,
   FileText,
   Key,
-  Folder,
-  FolderOpen,
+  Folder as FolderIcon,
   Archive,
   Trash2,
-  ChevronDown,
-  ChevronRight,
-  MoreVertical,
-  HelpCircle,
-  Building,
-  RotateCcw,
+  Copy,
+  Check,
   Edit2,
-  Eye,
-  CheckSquare,
-  Square,
+  MoreVertical,
+  RotateCcw,
+  ShieldCheck,
+  KeyRound,
+  X,
+  ChevronDown,
 } from 'lucide-react';
 
 interface VaultsDashboardPageProps {
@@ -74,12 +72,6 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Collapsible section state in sidebar
-  const [vaultsOpen, setVaultsOpen] = useState(true);
-  const [itemsOpen, setItemsOpen] = useState(true);
-  const [foldersOpen, setFoldersOpen] = useState(true);
-  const [collectionsOpen, setCollectionsOpen] = useState(true);
-
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<VaultItemSummary | null>(null);
@@ -87,13 +79,17 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<FolderSummary | null>(null);
 
-  // Decrypted search cache for client-side search across username & URI
+  // Decrypted search metadata cache
   const [decryptedMetadata, setDecryptedMetadata] = useState<
     Record<string, { username?: string; uris?: string[] }>
   >({});
 
-  // Selection
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  // Quick action copied indicator
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
+  // Options dropdown open state for individual items
+  const [activeItemMenuId, setActiveItemMenuId] = useState<string | null>(null);
+  // Folder selector menu toggle
+  const [folderMenuOpen, setFolderMenuOpen] = useState(false);
 
   // Fetch folders and items
   const loadData = async () => {
@@ -102,19 +98,19 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
       setLoading(true);
       setError(null);
 
-      // Fetch folders
-      const folderList = await api.getFolders();
-      setFolders(folderList);
+      const [folderList, itemList] = await Promise.all([
+        api.getFolders(),
+        api.getItems({
+          filter: activeFilter,
+          folderId: selectedFolderId || undefined,
+          search: searchQuery || undefined,
+        }),
+      ]);
 
-      // Fetch items
-      const itemList = await api.getItems({
-        filter: activeFilter,
-        folderId: selectedFolderId || undefined,
-        search: searchQuery || undefined,
-      });
+      setFolders(folderList);
       setItems(itemList);
 
-      // Decrypt items in background to support client-side deep search
+      // Decrypt items in background to support client-side deep search and safe previews
       if (isVaultUnlocked) {
         itemList.forEach((it) => {
           if (!decryptedMetadata[it.id]) {
@@ -178,6 +174,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
   const handleMoveToTrash = async (id: string) => {
     try {
       await api.moveItemToTrash(id);
+      setActiveItemMenuId(null);
       loadData();
       if (viewingItem?.id === id) setViewingItem(null);
     } catch (err: any) {
@@ -189,6 +186,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
   const handleRestoreFromTrash = async (id: string) => {
     try {
       await api.restoreItemFromTrash(id);
+      setActiveItemMenuId(null);
       loadData();
     } catch (err: any) {
       alert(err.message || 'Failed to restore item');
@@ -197,11 +195,16 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
 
   // Permanently Delete
   const handlePermanentDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this item? This action cannot be undone.')) {
+    if (
+      !window.confirm(
+        'Are you sure you want to permanently delete this item? This action cannot be undone.'
+      )
+    ) {
       return;
     }
     try {
       await api.permanentlyDeleteItem(id);
+      setActiveItemMenuId(null);
       loadData();
       if (viewingItem?.id === id) setViewingItem(null);
     } catch (err: any) {
@@ -217,6 +220,7 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
       } else {
         await api.archiveItem(item.id);
       }
+      setActiveItemMenuId(null);
       loadData();
       if (viewingItem?.id === item.id) setViewingItem(null);
     } catch (err: any) {
@@ -254,599 +258,543 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
     }
   };
 
-  // Select all toggle
-  const handleSelectAll = () => {
-    if (selectedItemIds.length === filteredItems.length) {
-      setSelectedItemIds([]);
-    } else {
-      setSelectedItemIds(filteredItems.map((i) => i.id));
+  // Copy Username Quick Action
+  const handleCopyUsername = async (item: VaultItemSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      let un = decryptedMetadata[item.id]?.username;
+      if (un === undefined) {
+        const payload = await decryptItem<LoginPayload>(item.encryptedPayload);
+        un = payload.username;
+      }
+      if (un) {
+        await navigator.clipboard.writeText(un);
+        setCopiedItemId(`${item.id}-un`);
+        setTimeout(() => setCopiedItemId(null), 2000);
+      }
+    } catch (err: any) {
+      alert('Failed to copy username: ' + err.message);
     }
   };
 
-  const handleSelectItem = (id: string) => {
-    if (selectedItemIds.includes(id)) {
-      setSelectedItemIds(selectedItemIds.filter((i) => i !== id));
-    } else {
-      setSelectedItemIds([...selectedItemIds, id]);
+  // Copy Password Quick Action (Zero-Knowledge Decrypt and Copy)
+  const handleCopyPassword = async (item: VaultItemSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const payload = await decryptItem<LoginPayload>(item.encryptedPayload);
+      if (payload.password) {
+        await navigator.clipboard.writeText(payload.password);
+        setCopiedItemId(`${item.id}-pwd`);
+        setTimeout(() => setCopiedItemId(null), 2000);
+      }
+    } catch (err: any) {
+      alert('Failed to copy password: ' + err.message);
     }
   };
+
+  // Filter Categories Definition
+  const filterCategories = [
+    { id: 'all', label: 'All Items', icon: KeyRound },
+    { id: 'favorites', label: 'Favorites', icon: Star },
+    { id: 'login', label: 'Logins', icon: Globe },
+    { id: 'card', label: 'Cards', icon: CreditCard },
+    { id: 'identity', label: 'Identities', icon: UserSquare2 },
+    { id: 'note', label: 'Secure Notes', icon: FileText },
+    { id: 'ssh', label: 'SSH Keys', icon: Key },
+    { id: 'archive', label: 'Archive', icon: Archive },
+    { id: 'trash', label: 'Trash', icon: Trash2 },
+  ];
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#F7F8F5] min-w-0">
       {/* If vault is locked, display unlock screen */}
       {!isVaultUnlocked && <UnlockVaultModal />}
 
-      {/* Middle Sub-Sidebar: FILTERS (Exact match to Screenshot 4) */}
-      <div className="w-64 bg-[#0c1322] border-r border-[#1e293b] flex flex-col shrink-0 select-none overflow-y-auto">
-        {/* Filters Header */}
-        <div className="p-4 border-b border-[#1e293b] flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Filters
-          </span>
-          <button
-            title="Vault filter information"
-            className="text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Search Vault Input */}
-        <div className="p-3 border-b border-[#1e293b]">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search vault"
-              className="w-full bg-[#131d31] border border-[#1f2e4d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Filters Tree Navigation */}
-        <div className="p-2 space-y-4 text-xs flex-1">
-          {/* Section 1: All Vaults */}
+      {/* ================= VAULTS DASHBOARD TOP BAR ================= */}
+      <div className="bg-white border-b border-[#E5E9E5] px-4 sm:px-8 py-5 shrink-0 shadow-subtle">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <button
-              onClick={() => setVaultsOpen(!vaultsOpen)}
-              className="w-full flex items-center gap-1.5 py-1 px-1.5 text-slate-400 hover:text-white font-medium"
-            >
-              {vaultsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              <span>All vaults</span>
-            </button>
-
-            {vaultsOpen && (
-              <div className="pl-4 space-y-0.5 mt-1">
-                <button
-                  onClick={() => {
-                    setActiveFilter('all');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'all' && !selectedFolderId
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-300 hover:bg-[#162036]'
-                  }`}
-                >
-                  <UserSquare2 className="w-3.5 h-3.5" />
-                  <span>My vault</span>
-                </button>
-
-                <div className="flex items-center justify-between px-2 py-1.5 rounded-md text-slate-400 hover:bg-[#162036]">
-                  <div className="flex items-center gap-2">
-                    <Building className="w-3.5 h-3.5" />
-                    <span>test</span>
-                  </div>
-                  <MoreVertical className="w-3.5 h-3.5" />
-                </div>
-
-                <button
-                  onClick={() =>
-                    alert('Organization Vaults is marked for future multi-tenant release.')
-                  }
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-[#162036]"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New organization</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Section 2: All Items */}
-          <div>
-            <button
-              onClick={() => setItemsOpen(!itemsOpen)}
-              className="w-full flex items-center gap-1.5 py-1 px-1.5 text-slate-400 hover:text-white font-medium"
-            >
-              {itemsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              <span>All items</span>
-            </button>
-
-            {itemsOpen && (
-              <div className="pl-4 space-y-0.5 mt-1">
-                <button
-                  onClick={() => {
-                    setActiveFilter('favorites');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'favorites'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-300 hover:bg-[#162036]'
-                  }`}
-                >
-                  <Star className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Favorites</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveFilter('login');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'login'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-300 hover:bg-[#162036]'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Login</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveFilter('card');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'card'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-400 hover:bg-[#162036]'
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5" />
-                  <span>Card</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveFilter('identity');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'identity'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-400 hover:bg-[#162036]'
-                  }`}
-                >
-                  <UserSquare2 className="w-3.5 h-3.5" />
-                  <span>Identity</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveFilter('note');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'note'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-400 hover:bg-[#162036]'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Secure note</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveFilter('ssh');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'ssh'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-400 hover:bg-[#162036]'
-                  }`}
-                >
-                  <Key className="w-3.5 h-3.5" />
-                  <span>SSH key</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: Folders */}
-          <div>
-            <div className="flex items-center justify-between py-1 px-1.5">
-              <button
-                onClick={() => setFoldersOpen(!foldersOpen)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-white font-medium"
-              >
-                {foldersOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                <span>Folders</span>
-              </button>
-              <button
-                onClick={() => {
-                  setEditingFolder(null);
-                  setIsFolderModalOpen(true);
-                }}
-                title="Create Folder"
-                className="p-1 hover:bg-[#162036] rounded text-slate-400 hover:text-blue-400 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-[#202923] tracking-tight">
+                Personal Vault
+              </h1>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6]">
+                {items.length} {items.length === 1 ? 'item' : 'items'}
+              </span>
             </div>
-
-            {foldersOpen && (
-              <div className="pl-4 space-y-0.5 mt-1">
-                <button
-                  onClick={() => {
-                    setActiveFilter('no_folder');
-                    setSelectedFolderId(null);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-                    activeFilter === 'no_folder'
-                      ? 'bg-blue-600/15 text-blue-400 font-medium'
-                      : 'text-slate-300 hover:bg-[#162036]'
-                  }`}
-                >
-                  <Folder className="w-3.5 h-3.5" />
-                  <span>No folder</span>
-                </button>
-
-                {folders.map((f) => (
-                  <div
-                    key={f.id}
-                    className={`group flex items-center justify-between px-2 py-1.5 rounded-md transition-colors ${
-                      selectedFolderId === f.id
-                        ? 'bg-blue-600/15 text-blue-400 font-medium'
-                        : 'text-slate-300 hover:bg-[#162036]'
-                    }`}
-                  >
-                    <button
-                      onClick={() => {
-                        setActiveFilter('folder');
-                        setSelectedFolderId(f.id);
-                      }}
-                      className="flex items-center gap-2 flex-1 text-left truncate"
-                    >
-                      {selectedFolderId === f.id ? (
-                        <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
-                      ) : (
-                        <Folder className="w-3.5 h-3.5" />
-                      )}
-                      <span className="truncate">{f.name}</span>
-                      {f.itemCount !== undefined && f.itemCount > 0 && (
-                        <span className="text-[10px] text-slate-500 ml-auto mr-1">
-                          {f.itemCount}
-                        </span>
-                      )}
-                    </button>
-
-                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingFolder(f);
-                          setIsFolderModalOpen(true);
-                        }}
-                        title="Rename folder"
-                        className="p-1 hover:text-white"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteFolder(f);
-                        }}
-                        title="Delete folder"
-                        className="p-1 hover:text-red-400"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-xs text-[#78827B] mt-0.5">
+              Zero-knowledge client-side encrypted credentials and digital identities.
+            </p>
           </div>
 
-          {/* Section 4: Collections */}
-          <div>
-            <button
-              onClick={() => setCollectionsOpen(!collectionsOpen)}
-              className="w-full flex items-center gap-1.5 py-1 px-1.5 text-slate-400 hover:text-white font-medium"
-            >
-              {collectionsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              <span>Collections</span>
-            </button>
-
-            {collectionsOpen && (
-              <div className="pl-4 space-y-0.5 mt-1">
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded-md text-slate-400">
-                  <Building className="w-3.5 h-3.5" />
-                  <span>Default collection</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Section 5: Archive */}
-          <button
-            onClick={() => {
-              setActiveFilter('archive');
-              setSelectedFolderId(null);
-            }}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-              activeFilter === 'archive'
-                ? 'bg-blue-600/15 text-blue-400 font-medium'
-                : 'text-slate-300 hover:bg-[#162036]'
-            }`}
-          >
-            <Archive className="w-3.5 h-3.5" />
-            <span>Archive</span>
-          </button>
-
-          {/* Section 6: Trash */}
-          <button
-            onClick={() => {
-              setActiveFilter('trash');
-              setSelectedFolderId(null);
-            }}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors ${
-              activeFilter === 'trash'
-                ? 'bg-blue-600/15 text-blue-400 font-medium'
-                : 'text-slate-300 hover:bg-[#162036]'
-            }`}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Trash</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Vault Items Area */}
-      <main className="flex-1 flex flex-col bg-[#0a0f1d] overflow-hidden">
-        {/* Table Header Bar matching Screenshot 4 */}
-        <div className="h-12 border-b border-[#1e293b] px-6 flex items-center justify-between bg-[#0a0f1d] text-xs text-slate-400 font-medium shrink-0">
-          <div className="flex items-center gap-4 flex-1">
-            <button
-              onClick={handleSelectAll}
-              className="p-1 hover:text-white transition-colors"
-            >
-              {selectedItemIds.length > 0 && selectedItemIds.length === filteredItems.length ? (
-                <CheckSquare className="w-4 h-4 text-blue-500" />
-              ) : (
-                <Square className="w-4 h-4 text-slate-500" />
-              )}
-            </button>
-            <span className="w-2/5">Name</span>
-            <span className="w-2/5">Owner</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span>Options</span>
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 setEditingItem(null);
                 setIsAddModalOpen(true);
               }}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs transition-colors shadow-sm"
+              className="w-full sm:w-auto px-4 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-subtle flex items-center justify-center gap-2 transition-all duration-150"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add item</span>
+              <Plus className="w-4 h-4" />
+              <span>Create Password</span>
             </button>
           </div>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto">
-          {!onboardingDismissed && (
-            <OnboardingCard
-              hasItems={items.length > 0}
-              onNavigateToImport={onNavigateToImport || (() => {})}
-              onDismiss={handleDismissOnboarding}
+        {/* Search Bar & Folders Picker Row */}
+        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#78827B]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title, username, or website address..."
+              className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white focus:ring-2 focus:ring-[#168568]/15 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-[#202923] placeholder-[#78827B]/60 outline-none transition-all"
             />
-          )}
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
+          {/* Folder Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setFolderMenuOpen(!folderMenuOpen)}
+              className="w-full sm:w-auto px-3.5 py-2 bg-[#F7F8F5] hover:bg-[#EAECE8] border border-[#E5E9E5] rounded-xl text-xs font-semibold text-[#202923] flex items-center justify-between sm:justify-start gap-2 transition-colors"
+            >
+              <FolderIcon className="w-3.5 h-3.5 text-[#168568]" />
+              <span className="truncate max-w-[140px]">
+                {selectedFolderId
+                  ? folders.find((f) => f.id === selectedFolderId)?.name || 'Folder'
+                  : 'All Folders'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-[#78827B]" />
+            </button>
+
+            {folderMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setFolderMenuOpen(false)}
+                />
+                <div className="absolute left-0 sm:right-0 sm:left-auto mt-1 w-56 bg-white border border-[#E5E9E5] rounded-2xl shadow-dropdown py-1.5 z-40 text-xs">
+                  <div className="px-3 py-2 border-b border-[#E5E9E5] flex items-center justify-between">
+                    <span className="font-bold text-[11px] uppercase tracking-wider text-[#78827B]">
+                      Folders
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingFolder(null);
+                        setIsFolderModalOpen(true);
+                        setFolderMenuOpen(false);
+                      }}
+                      className="text-[#168568] hover:text-[#126e56] font-semibold text-[11px] flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New</span>
+                    </button>
+                  </div>
+
+                  <div className="p-1 space-y-0.5 max-h-56 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedFolderId(null);
+                        setFolderMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center justify-between ${
+                        selectedFolderId === null
+                          ? 'bg-[#E7F4EF] text-[#168568] font-semibold'
+                          : 'text-[#202923] hover:bg-[#F3F5F2]'
+                      }`}
+                    >
+                      <span>All Folders</span>
+                      <span className="text-[10px] text-[#78827B]">{items.length}</span>
+                    </button>
+
+                    {folders.map((f) => (
+                      <div
+                        key={f.id}
+                        className={`group w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                          selectedFolderId === f.id
+                            ? 'bg-[#E7F4EF] text-[#168568] font-semibold'
+                            : 'text-[#202923] hover:bg-[#F3F5F2]'
+                        }`}
+                      >
+                        <button
+                          onClick={() => {
+                            setSelectedFolderId(f.id);
+                            setFolderMenuOpen(false);
+                          }}
+                          className="flex-1 text-left truncate mr-2"
+                        >
+                          {f.name}
+                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFolder(f);
+                              setIsFolderModalOpen(true);
+                              setFolderMenuOpen(false);
+                            }}
+                            className="p-1 text-[#78827B] hover:text-[#168568]"
+                            title="Rename folder"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFolder(f);
+                            }}
+                            className="p-1 text-[#78827B] hover:text-red-600"
+                            title="Delete folder"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ================= CATEGORY FILTER CHIPS ================= */}
+        <div className="mt-4 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+          {filterCategories.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeFilter === cat.id && !selectedFolderId;
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setActiveFilter(cat.id);
+                  setSelectedFolderId(null);
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap transition-all duration-150 shrink-0 ${
+                  isActive
+                    ? 'bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6] font-bold shadow-subtle'
+                    : 'bg-white text-[#78827B] border border-[#E5E9E5] hover:text-[#202923] hover:border-[#D4DAD4]'
+                }`}
+              >
+                <Icon
+                  className={`w-3.5 h-3.5 ${
+                    isActive
+                      ? 'text-[#168568]'
+                      : cat.id === 'favorites'
+                      ? 'text-amber-500'
+                      : 'text-[#78827B]'
+                  }`}
+                />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ================= MAIN CONTENT LIST / CARDS ================= */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Onboarding Checklist Card */}
+        {!onboardingDismissed && (
+          <OnboardingCard
+            hasItems={items.length > 0}
+            onNavigateToImport={onNavigateToImport || (() => {})}
+            onDismiss={handleDismissOnboarding}
+          />
+        )}
+
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
           {loading ? (
-            <div className="h-full flex items-center justify-center text-xs text-slate-400">
-              <span className="inline-block animate-spin mr-2">⚙️</span>
-              Loading secure vault items...
+            <div className="py-24 flex flex-col items-center justify-center text-xs text-[#78827B]">
+              <span className="w-7 h-7 border-2 border-[#168568]/30 border-t-[#168568] rounded-full inline-block animate-spin mb-3" />
+              <span>Loading secure vault items...</span>
             </div>
           ) : filteredItems.length === 0 ? (
-            /* Screenshot 4 Exact Empty State */
-            <div className="h-full flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-              {/* 4 Colored Icons 2x2 Grid */}
-              <div className="grid grid-cols-2 gap-2 mb-6 p-3 bg-[#131d31]/50 border border-[#1f2e4d] rounded-2xl shadow-inner">
-                <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-amber-400 shadow-sm">
-                  <Key className="w-6 h-6" />
-                </div>
-                <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 shadow-sm">
-                  <CreditCard className="w-6 h-6" />
-                </div>
-                <div className="w-12 h-12 bg-blue-600/10 border border-blue-600/30 rounded-xl flex items-center justify-center text-blue-400 shadow-sm">
-                  <UserSquare2 className="w-6 h-6" />
-                </div>
-                <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/30 rounded-xl flex items-center justify-center text-indigo-400 shadow-sm">
-                  <FileText className="w-6 h-6" />
-                </div>
+            /* Premium Empty State */
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-8 sm:p-14 text-center max-w-lg mx-auto shadow-card">
+              <div className="w-16 h-16 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] mx-auto mb-4 shadow-subtle">
+                <ShieldCheck className="w-8 h-8" />
               </div>
-
-              <h3 className="text-base font-bold text-slate-100 mb-2">
-                No items in the vault
+              <h3 className="text-base sm:text-lg font-bold text-[#202923] mb-1.5">
+                {searchQuery
+                  ? 'No matching entries found'
+                  : activeFilter === 'favorites'
+                  ? 'No favorite items yet'
+                  : activeFilter === 'trash'
+                  ? 'Trash is empty'
+                  : 'Your vault is ready'}
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                The vault protects more than just your passwords. Store secure logins, IDs, cards and
-                notes securely here.
+              <p className="text-xs text-[#78827B] leading-relaxed mb-6 max-w-sm mx-auto">
+                {searchQuery
+                  ? `No credentials found matching "${searchQuery}". Check your spelling or clear your filter.`
+                  : 'Store logins, credentials, and encrypted notes with zero-knowledge AES-256-GCM protection.'}
               </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingItem(null);
-                  setIsAddModalOpen(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-lg text-xs transition-colors shadow-lg shadow-blue-600/20 flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add item</span>
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={() => {
+                    setEditingItem(null);
+                    setIsAddModalOpen(true);
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white text-xs font-semibold rounded-xl shadow-subtle flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Login</span>
+                </button>
+                {onNavigateToImport && (
+                  <button
+                    onClick={onNavigateToImport}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-[#F3F5F2] text-[#202923] border border-[#E5E9E5] text-xs font-semibold rounded-xl shadow-subtle transition-colors"
+                  >
+                    Import Passwords
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
-            /* Items Table */
-            <div className="divide-y divide-[#1e293b]">
-              {filteredItems.map((item) => {
-                const isSelected = selectedItemIds.includes(item.id);
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center justify-between px-6 py-3.5 hover:bg-[#131d31]/60 transition-colors text-xs ${
-                      isSelected ? 'bg-blue-900/10' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <button
-                        onClick={() => handleSelectItem(item.id)}
-                        className="p-1 hover:text-white transition-colors"
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-blue-500" />
-                        ) : (
-                          <Square className="w-4 h-4 text-slate-500" />
-                        )}
-                      </button>
+            /* Modern Responsive Credential Cards Grid */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1 text-xs text-[#78827B] font-medium">
+                <span>
+                  Showing {filteredItems.length}{' '}
+                  {filteredItems.length === 1 ? 'credential' : 'credentials'}
+                </span>
+                <span className="text-[11px] hidden sm:block">Click any card to inspect or edit</span>
+              </div>
 
-                      {/* Icon */}
-                      <div className="w-8 h-8 rounded-lg bg-blue-600/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                        {item.itemType === 'LOGIN' && <Globe className="w-4 h-4" />}
-                        {item.itemType === 'CARD' && <CreditCard className="w-4 h-4" />}
-                        {item.itemType === 'IDENTITY' && <UserSquare2 className="w-4 h-4" />}
-                        {item.itemType === 'SECURE_NOTE' && <FileText className="w-4 h-4" />}
-                        {item.itemType === 'SSH_KEY' && <Key className="w-4 h-4" />}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {filteredItems.map((item) => {
+                  const meta = decryptedMetadata[item.id];
+                  const primaryUri = meta?.uris?.[0];
+                  const cleanDomain = primaryUri
+                    ? primaryUri.replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+                    : null;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setViewingItem(item)}
+                      className="group bg-white border border-[#E5E9E5] hover:border-[#B7E3D6] hover:shadow-cardHover rounded-2xl p-4 transition-all duration-150 cursor-pointer flex flex-col justify-between relative"
+                    >
+                      <div>
+                        {/* Card Header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] shrink-0">
+                              <KeyRound className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-[#202923] truncate leading-tight group-hover:text-[#168568] transition-colors">
+                                {item.itemName}
+                              </h4>
+                              <p className="text-[11px] text-[#78827B] truncate mt-0.5">
+                                {cleanDomain || (meta?.username ? meta.username : 'Credential')}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Favorite Star Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleFavorite(item);
+                            }}
+                            className="p-1.5 rounded-lg text-[#78827B] hover:text-amber-500 hover:bg-[#F3F5F2] transition-colors shrink-0"
+                            title={item.isFavorite ? 'Remove from favorites' : 'Mark as favorite'}
+                          >
+                            <Star
+                              className={`w-4 h-4 ${
+                                item.isFavorite ? 'text-amber-500 fill-amber-500' : 'text-[#78827B]'
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Card Meta details */}
+                        <div className="mt-3 pt-3 border-t border-[#E5E9E5] flex items-center justify-between text-xs">
+                          <div className="truncate text-[11px] text-[#78827B] font-mono select-all">
+                            {meta?.username ? (
+                              <span className="truncate block max-w-[170px]">{meta.username}</span>
+                            ) : (
+                              <span className="italic">Encrypted login</span>
+                            )}
+                          </div>
+
+                          {item.folderName && (
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#F7F8F5] text-[#78827B] border border-[#E5E9E5] truncate max-w-[100px]">
+                              {item.folderName}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Name + Folder Badge */}
-                      <div className="w-2/5 pr-4 truncate">
-                        <button
-                          onClick={() => setViewingItem(item)}
-                          className="font-medium text-slate-100 hover:text-blue-400 transition-colors text-left truncate block"
-                        >
-                          {item.itemName}
-                        </button>
-                        {item.folderName && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
-                            <Folder className="w-2.5 h-2.5" />
-                            {item.folderName}
-                          </span>
-                        )}
+                      {/* Card Quick Actions Bar */}
+                      <div
+                        className="mt-3 pt-2.5 border-t border-[#E5E9E5] flex items-center justify-between text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-1">
+                          {/* Copy Username */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyUsername(item, e)}
+                            className="p-1.5 rounded-lg text-[#78827B] hover:text-[#168568] hover:bg-[#E7F4EF] transition-colors"
+                            title="Copy username"
+                          >
+                            {copiedItemId === `${item.id}-un` ? (
+                              <Check className="w-3.5 h-3.5 text-[#168568]" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+
+                          {/* Copy Password */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyPassword(item, e)}
+                            className="px-2 py-1 rounded-lg text-[11px] font-semibold text-[#168568] hover:bg-[#E7F4EF] border border-transparent hover:border-[#B7E3D6] transition-colors flex items-center gap-1"
+                            title="Decrypt & copy password"
+                          >
+                            {copiedItemId === `${item.id}-pwd` ? (
+                              <>
+                                <Check className="w-3 h-3 text-[#168568]" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <span>Copy Pass</span>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Options Menu & Edit */}
+                        <div className="flex items-center gap-1 relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItem(item);
+                              setIsAddModalOpen(true);
+                            }}
+                            className="p-1.5 text-[#78827B] hover:text-[#168568] hover:bg-[#F3F5F2] rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveItemMenuId(activeItemMenuId === item.id ? null : item.id);
+                            }}
+                            className="p-1.5 text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2] rounded-lg transition-colors"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Popover Options Menu */}
+                          {activeItemMenuId === item.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setActiveItemMenuId(null)}
+                              />
+                              <div className="absolute right-0 bottom-full mb-1 w-44 bg-white border border-[#E5E9E5] rounded-xl shadow-dropdown py-1 z-40 text-xs font-medium">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleToggleFavorite(item);
+                                    setActiveItemMenuId(null);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#F3F5F2] flex items-center gap-2 text-[#202923]"
+                                >
+                                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>{item.isFavorite ? 'Unfavorite' : 'Favorite'}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleArchive(item)}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#F3F5F2] flex items-center gap-2 text-[#202923]"
+                                >
+                                  <Archive className="w-3.5 h-3.5 text-[#78827B]" />
+                                  <span>{item.isArchived ? 'Unarchive' : 'Archive'}</span>
+                                </button>
+
+                                {item.deletedAt ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRestoreFromTrash(item.id)}
+                                      className="w-full text-left px-3 py-1.5 hover:bg-[#F3F5F2] flex items-center gap-2 text-[#168568]"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      <span>Restore Item</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePermanentDelete(item.id)}
+                                      className="w-full text-left px-3 py-1.5 hover:bg-red-50 flex items-center gap-2 text-red-600"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Permanently Delete</span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveToTrash(item.id)}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-red-50 flex items-center gap-2 text-red-600"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Move to Trash</span>
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
-
-                      {/* Owner */}
-                      <span className="w-2/5 text-slate-400 truncate">{user?.email}</span>
                     </div>
-
-                    {/* Actions Menu */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleFavorite(item)}
-                        title={item.isFavorite ? 'Remove Favorite' : 'Mark Favorite'}
-                        className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-amber-400 transition-colors"
-                      >
-                        <Star
-                          className={`w-4 h-4 ${
-                            item.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'
-                          }`}
-                        />
-                      </button>
-
-                      <button
-                        onClick={() => setViewingItem(item)}
-                        title="View Details"
-                        className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-white transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setIsAddModalOpen(true);
-                        }}
-                        title="Edit Item"
-                        className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-white transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-
-                      {activeFilter === 'trash' ? (
-                        <>
-                          <button
-                            onClick={() => handleRestoreFromTrash(item.id)}
-                            title="Restore from Trash"
-                            className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-emerald-400 transition-colors"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handlePermanentDelete(item.id)}
-                            title="Permanently Delete"
-                            className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleToggleArchive(item)}
-                            title={item.isArchived ? 'Restore from Archive' : 'Archive Item'}
-                            className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-white transition-colors"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleMoveToTrash(item.id)}
-                            title="Move to Trash"
-                            className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
-      </main>
+      </div>
 
-      {/* Add / Edit Login Modal */}
+      {/* Modals */}
       <AddLoginModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingItem(null);
+        }}
         onSaved={loadData}
         folders={folders}
         itemToEdit={editingItem}
       />
 
-      {/* View Login Modal */}
       <ViewLoginModal
         isOpen={Boolean(viewingItem)}
         onClose={() => setViewingItem(null)}
         item={viewingItem}
         onEdit={() => {
-          const it = viewingItem;
+          setEditingItem(viewingItem);
           setViewingItem(null);
-          setEditingItem(it);
           setIsAddModalOpen(true);
         }}
         onDelete={() => {
@@ -861,10 +809,12 @@ export const VaultsDashboardPage: React.FC<VaultsDashboardPageProps> = ({
         }}
       />
 
-      {/* Folder Modal */}
       <FolderModal
         isOpen={isFolderModalOpen}
-        onClose={() => setIsFolderModalOpen(false)}
+        onClose={() => {
+          setIsFolderModalOpen(false);
+          setEditingFolder(null);
+        }}
         onSave={handleSaveFolder}
         folderToEdit={editingFolder}
       />

@@ -9,13 +9,12 @@ import {
 } from '../lib/sendCrypto';
 import {
   Send,
-  Lock,
   Copy,
   Check,
-  Eye,
   Download,
   AlertTriangle,
-  Mail,
+  ShieldCheck,
+  File as FileIcon,
 } from 'lucide-react';
 
 export const PublicSendRecipientPage: React.FC = () => {
@@ -87,7 +86,9 @@ export const PublicSendRecipientPage: React.FC = () => {
       if (res.encryptedPayload) {
         await decryptAndSetText(res.encryptedPayload);
       }
-      setSendData((prev) => (prev ? { ...prev, requiresPassword: false, encryptedPayload: res.encryptedPayload } : null));
+      setSendData((prev) =>
+        prev ? { ...prev, requiresPassword: false, encryptedPayload: res.encryptedPayload } : null
+      );
     } catch (err: any) {
       setChallengeError(err.message || 'Incorrect password');
     } finally {
@@ -107,10 +108,14 @@ export const PublicSendRecipientPage: React.FC = () => {
         await decryptAndSetText(res.encryptedPayload);
       }
       setSendData((prev) =>
-        prev ? { ...prev, requiresEmailVerification: false, encryptedPayload: res.encryptedPayload } : null
+        prev
+          ? { ...prev, requiresEmailVerification: false, encryptedPayload: res.encryptedPayload }
+          : null
       );
     } catch (err: any) {
-      setChallengeError(err.message || 'Email verification failed. You may not be an authorized recipient.');
+      setChallengeError(
+        err.message || 'Email verification failed. You may not be an authorized recipient.'
+      );
     } finally {
       setSubmittingChallenge(false);
     }
@@ -162,178 +167,200 @@ export const PublicSendRecipientPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1d] flex flex-col items-center justify-center p-4">
-      {/* Central Card matching Screenshot 8 */}
-      <div className="w-full max-w-lg bg-[#131d31] border border-[#1f2e4d] rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center">
-        {/* Top Paper Airplane Icon Badge */}
-        <div className="w-16 h-16 bg-blue-600/20 border border-blue-500/40 rounded-2xl flex items-center justify-center text-blue-400 mb-4 shadow-inner">
-          <Send className="w-8 h-8" />
+    <div className="min-h-screen bg-[#F7F8F5] flex flex-col items-center justify-center p-4">
+      {/* Brand Watermark */}
+      <div className="mb-6 flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl bg-[#168568] flex items-center justify-center text-white shadow-sm">
+          <ShieldCheck className="w-5 h-5" />
+        </div>
+        <span className="font-bold text-sm tracking-tight text-[#202923]">
+          SecureVault <span className="text-[#168568] font-normal">• Encrypted Share</span>
+        </span>
+      </div>
+
+      {/* Main Card */}
+      <div className="w-full max-w-lg bg-white border border-[#E5E9E5] rounded-3xl p-6 sm:p-8 shadow-card flex flex-col items-center text-center">
+        {/* Airplane Icon Badge */}
+        <div className="w-14 h-14 bg-[#E7F4EF] border border-[#B7E3D6] rounded-2xl flex items-center justify-center text-[#168568] mb-4 shadow-subtle">
+          <Send className="w-6 h-6" />
         </div>
 
-        <h1 className="text-xl font-bold text-white mb-1">View Send</h1>
+        <h1 className="text-xl font-bold text-[#202923] mb-1">Secure Send</h1>
 
         {loading ? (
-          <div className="py-12 text-xs text-slate-400">
-            <span className="inline-block animate-spin mr-2">⚙️</span>
+          <div className="py-14 text-xs text-[#78827B]">
+            <span className="w-5 h-5 border-2 border-[#168568]/30 border-t-[#168568] rounded-full inline-block animate-spin mr-2 align-middle" />
             Fetching end-to-end encrypted Send...
           </div>
         ) : error ? (
-          <div className="py-8 space-y-4">
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-xs flex items-center gap-3 text-left">
-              <AlertTriangle className="w-6 h-6 shrink-0 text-red-400" />
-              <span>{error}</span>
+          <div className="py-6 space-y-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700 leading-relaxed">
+              <AlertTriangle className="w-5 h-5 text-red-600 mx-auto mb-2" />
+              <p className="font-bold text-sm text-red-800 mb-1">Send Unavailable</p>
+              <p>{error}</p>
             </div>
-            <p className="text-xs text-slate-500">
-              Sends automatically expire or disappear once revoked or access limits are reached.
-            </p>
           </div>
-        ) : sendData ? (
-          <div className="w-full space-y-5 mt-2">
-            {/* Sender attribution */}
-            <p className="text-xs text-slate-400">
-              {sendData.senderEmail ? (
-                <>
-                  SecureVault member <span className="text-blue-400 font-medium">{sendData.senderEmail}</span> shared the following with you
-                </>
-              ) : (
-                'A SecureVault member shared the following with you'
-              )}
-            </p>
+        ) : sendData?.requiresPassword ? (
+          /* Password Protection Screen */
+          <div className="w-full mt-4 space-y-4 text-left">
+            <div className="text-center">
+              <h2 className="text-sm font-bold text-[#202923]">{sendData.name}</h2>
+              <p className="text-xs text-[#78827B] mt-0.5">This Send requires a password to decrypt.</p>
+            </div>
 
-            {/* Send Name */}
-            <h2 className="text-base font-bold text-white">{sendData.name}</h2>
+            {challengeError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                {challengeError}
+              </div>
+            )}
 
-            {/* Password Challenge Prompt */}
-            {sendData.requiresPassword ? (
-              <form onSubmit={handlePasswordSubmit} className="space-y-4 text-left">
-                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 flex items-center gap-2">
-                  <Lock className="w-4 h-4 shrink-0" />
-                  <span>This Send is password-protected. Enter the password to unlock.</span>
-                </div>
+            <form onSubmit={handlePasswordSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter recipient password"
+                  className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none"
+                />
+              </div>
 
-                {challengeError && (
-                  <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
-                    {challengeError}
-                  </div>
+              <button
+                type="submit"
+                disabled={submittingChallenge || !password}
+                className="w-full py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] text-white text-xs font-semibold rounded-xl shadow-subtle transition-colors"
+              >
+                {submittingChallenge ? 'Verifying...' : 'Unlock & Decrypt'}
+              </button>
+            </form>
+          </div>
+        ) : sendData?.requiresEmailVerification ? (
+          /* Email Restriction Challenge Screen */
+          <div className="w-full mt-4 space-y-4 text-left">
+            <div className="text-center">
+              <h2 className="text-sm font-bold text-[#202923]">{sendData.name}</h2>
+              <p className="text-xs text-[#78827B] mt-0.5">
+                The sender restricted access to specific recipient emails.
+              </p>
+            </div>
+
+            {challengeError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                {challengeError}
+              </div>
+            )}
+
+            <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                  Your Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingChallenge || !email}
+                className="w-full py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] text-white text-xs font-semibold rounded-xl shadow-subtle transition-colors"
+              >
+                {submittingChallenge ? 'Verifying...' : 'Verify Email Access'}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* Decrypted Send Content Display */
+          <div className="w-full mt-4 space-y-4 text-left">
+            <div className="p-4 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase font-bold text-[#168568]">
+                  {sendData?.sendType === 'TEXT' ? 'Text Message' : 'Encrypted File'}
+                </span>
+                {!sendData?.hideSenderEmail && sendData?.senderEmail && (
+                  <span className="text-[11px] text-[#78827B]">From: {sendData.senderEmail}</span>
                 )}
+              </div>
+              <h2 className="text-base font-bold text-[#202923]">{sendData?.name}</h2>
+            </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    autoFocus
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submittingChallenge}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs shadow-lg shadow-blue-600/20"
-                >
-                  {submittingChallenge ? 'Verifying...' : 'Unlock Content'}
-                </button>
-              </form>
-            ) : sendData.requiresEmailVerification ? (
-              /* Email Verification Challenge Prompt */
-              <form onSubmit={handleEmailSubmit} className="space-y-4 text-left">
-                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 flex items-center gap-2">
-                  <Mail className="w-4 h-4 shrink-0" />
-                  <span>This Send is restricted to specific authorized email addresses.</span>
-                </div>
-
-                {challengeError && (
-                  <div className="p-2.5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
-                    {challengeError}
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Your Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    autoFocus
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submittingChallenge}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs shadow-lg shadow-blue-600/20"
-                >
-                  {submittingChallenge ? 'Verifying...' : 'Access Content'}
-                </button>
-              </form>
-            ) : sendData.sendType === 'TEXT' ? (
-              /* Revealed / Hidden Text Display matching Screenshot 8 */
-              <div className="space-y-4">
-                <div className="p-4 bg-[#0a0f1d] border border-[#1f2e4d] rounded-xl text-left font-mono text-sm text-slate-100 min-h-[100px] flex items-center justify-center relative">
-                  {!isRevealed ? (
-                    <button
-                      onClick={() => setIsRevealed(true)}
-                      className="flex items-center gap-2 text-xs text-slate-400 hover:text-white"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>Click to reveal shared text</span>
-                    </button>
+            {/* TEXT SEND CONTENT */}
+            {sendData?.sendType === 'TEXT' && (
+              <div className="space-y-3">
+                <div className="relative bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl p-4 font-mono text-xs text-[#202923] min-h-[100px] break-all select-all">
+                  {isRevealed ? (
+                    <p className="whitespace-pre-wrap leading-relaxed">{decryptedText}</p>
                   ) : (
-                    <div className="w-full break-all whitespace-pre-wrap select-all">
-                      {decryptedText}
+                    <div className="h-20 flex flex-col items-center justify-center text-[#78827B] text-center">
+                      <p className="mb-2">Hidden by sender for privacy</p>
+                      <button
+                        onClick={() => setIsRevealed(true)}
+                        className="px-3 py-1 bg-white border border-[#E5E9E5] hover:border-[#168568] text-xs font-semibold text-[#168568] rounded-lg shadow-subtle"
+                      >
+                        Reveal Text
+                      </button>
                     </div>
                   )}
                 </div>
 
-                <button
-                  onClick={handleCopyText}
-                  disabled={!isRevealed}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
-                >
-                  {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                  <span>{copied ? 'Copied value' : 'Copy value'}</span>
-                </button>
+                {isRevealed && (
+                  <button
+                    onClick={handleCopyText}
+                    className="w-full py-2.5 px-4 bg-[#168568] hover:bg-[#126e56] text-white font-semibold text-xs rounded-xl shadow-subtle transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied ? 'Copied to Clipboard' : 'Copy Text'}</span>
+                  </button>
+                )}
               </div>
-            ) : (
-              /* File Download Display */
+            )}
+
+            {/* FILE SEND CONTENT */}
+            {sendData?.sendType === 'FILE' && (
               <div className="space-y-4">
-                <div className="p-4 bg-[#0a0f1d] border border-[#1f2e4d] rounded-xl text-left space-y-1">
-                  <span className="block text-xs font-semibold text-white">
-                    {sendData.fileInfo?.originalFileName}
-                  </span>
-                  <span className="block text-[11px] text-slate-400 font-mono">
-                    Size: {((sendData.fileInfo?.encryptedSize || 0) / 1024).toFixed(1)} KB
-                  </span>
+                <div className="p-4 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] text-[#168568] flex items-center justify-center shrink-0">
+                    <FileIcon className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-bold text-[#202923] truncate">
+                      {sendData.fileInfo?.originalFileName}
+                    </p>
+                    <p className="text-[11px] text-[#78827B]">
+                      {((sendData.fileInfo?.encryptedSize || 0) / 1024).toFixed(1)} KB •{' '}
+                      {sendData.fileInfo?.mimeType}
+                    </p>
+                  </div>
                 </div>
 
                 <button
                   onClick={handleDownloadFile}
                   disabled={submittingChallenge}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+                  className="w-full py-2.5 px-4 bg-[#168568] hover:bg-[#126e56] text-white font-semibold text-xs rounded-xl shadow-subtle transition-colors flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  <span>{submittingChallenge ? 'Decrypting...' : 'Download and Decrypt File'}</span>
+                  <span>{submittingChallenge ? 'Decrypting...' : 'Decrypt & Download File'}</span>
                 </button>
               </div>
             )}
 
-            {/* Bottom Expiration Notice */}
-            <p className="text-[11px] text-slate-500 pt-2">
-              This Send expires at {new Date(sendData.expiresAt).toLocaleString()}
-            </p>
+            {/* Expiration Note */}
+            <div className="pt-2 text-center text-[11px] text-[#78827B]">
+              Expires on {new Date(sendData?.expiresAt || '').toLocaleString()}
+            </div>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,16 @@ import { useAuth } from '../context/AuthContext';
 import { useVault } from '../context/VaultContext';
 import { api } from '../services/api';
 import { FolderSummary, VaultItemSummary, ImportPreviewItem, LoginPayload } from '@pwm/shared';
-import { Upload, AlertTriangle, ArrowRight, Check } from 'lucide-react';
+import {
+  Upload,
+  AlertTriangle,
+  ArrowRight,
+  FileUp,
+  Folder,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 export const ImportPage: React.FC = () => {
   const { user } = useAuth();
@@ -12,15 +21,17 @@ export const ImportPage: React.FC = () => {
   const [folders, setFolders] = useState<FolderSummary[]>([]);
   const [existingItems, setExistingItems] = useState<VaultItemSummary[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string>('');
-  const [fileFormat, setFileFormat] = useState<string>('');
+  const [fileFormat, setFileFormat] = useState<string>('json');
   const [rawContent, setRawContent] = useState<string>('');
   const [selectedFileName, setSelectedFileName] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
 
   // Workflow states: 'input' -> 'preview' -> 'complete'
   const [step, setStep] = useState<'input' | 'preview' | 'complete'>('input');
   const [previewItems, setPreviewItems] = useState<ImportPreviewItem[]>([]);
   const [duplicateOption, setDuplicateOption] = useState<'skip' | 'import_all'>('skip');
   const [importing, setImporting] = useState(false);
+  const [showMaskedPassword, setShowMaskedPassword] = useState(false);
   const [importSummary, setImportSummary] = useState<{
     total: number;
     success: number;
@@ -36,17 +47,11 @@ export const ImportPage: React.FC = () => {
     }
   }, [user, isVaultUnlocked]);
 
-  // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // Handle file drop & selection
+  const processFile = (file: globalThis.File) => {
     setSelectedFileName(file.name);
-    // Auto-detect format if not already set
-    if (!fileFormat) {
-      if (file.name.endsWith('.json')) setFileFormat('json');
-      else if (file.name.endsWith('.csv')) setFileFormat('csv');
-    }
+    if (file.name.endsWith('.json')) setFileFormat('json');
+    else if (file.name.endsWith('.csv')) setFileFormat('csv');
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -54,6 +59,18 @@ export const ImportPage: React.FC = () => {
       setRawContent(content || '');
     };
     reader.readAsText(file);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   // Parse CSV helper
@@ -65,7 +82,6 @@ export const ImportPage: React.FC = () => {
     const records: any[] = [];
 
     for (let i = 1; i < lines.length; i++) {
-      // Regex handling quotes with commas
       const matches = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
       const values = matches
         ? matches.map((m) => m.replace(/^"|"$/g, '').trim())
@@ -83,12 +99,8 @@ export const ImportPage: React.FC = () => {
   // Parse and preview
   const handlePreview = () => {
     setError(null);
-    if (!fileFormat) {
-      setError('Please select a file format.');
-      return;
-    }
     if (!rawContent.trim()) {
-      setError('Please choose a file or paste file content.');
+      setError('Please select a file or drop a file to import.');
       return;
     }
 
@@ -100,12 +112,12 @@ export const ImportPage: React.FC = () => {
         try {
           json = JSON.parse(rawContent);
         } catch {
-          throw new Error('Invalid JSON format. Please verify the JSON syntax.');
+          throw new Error('Invalid JSON format. Please verify the file syntax.');
         }
 
         const items = Array.isArray(json) ? json : json.items || [];
         if (!Array.isArray(items) || items.length === 0) {
-          throw new Error('No items found in JSON file.');
+          throw new Error('No credential items found in JSON file.');
         }
 
         items.forEach((item: any) => {
@@ -138,7 +150,6 @@ export const ImportPage: React.FC = () => {
           });
         });
       } else {
-        // CSV Parsing
         const rows = parseCSV(rawContent);
         if (rows.length === 0) {
           throw new Error('No records could be parsed from CSV.');
@@ -240,192 +251,216 @@ export const ImportPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 bg-[#0a0f1d] p-8 overflow-y-auto">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="flex-1 bg-[#F7F8F5] p-4 sm:p-8 overflow-y-auto min-w-0">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div>
-          <h1 className="text-xl font-bold text-white mb-1">Import Vault Data</h1>
-          <p className="text-xs text-slate-400">
-            Import passwords and credentials from other password managers or CSV/JSON backups.
+          <h1 className="text-xl sm:text-2xl font-bold text-[#202923] tracking-tight">
+            Import Credentials
+          </h1>
+          <p className="text-xs sm:text-sm text-[#78827B] mt-1">
+            Easily migrate your existing passwords from Bitwarden, Chrome, or CSV/JSON files with
+            automatic client-side encryption.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-xs">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-2.5 text-red-700 text-xs">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* STEP 1: Input & Configuration matching Screenshot 14 */}
+        {/* STEP 1: Input & Configuration */}
         {step === 'input' && (
-          <div className="space-y-6">
-            {/* Section 1: Destination */}
-            <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Destination
-              </span>
+          <div className="space-y-5">
+            {/* Step Card: Destination & Format */}
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-5 sm:p-7 shadow-card space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-2">
+                <Folder className="w-4 h-4" />
+                <span>1. Destination & Format</span>
+              </h3>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Vault</label>
-                <select
-                  disabled
-                  className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-xs text-slate-200 cursor-not-allowed opacity-90"
-                >
-                  <option>My vault</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Folder</label>
-                <select
-                  value={selectedFolderId}
-                  onChange={(e) => setSelectedFolderId(e.target.value)}
-                  className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- Select --</option>
-                  <option value="">No folder</option>
-                  {folders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Select this option if you want the imported file contents moved to a folder
-                </p>
-              </div>
-            </div>
-
-            {/* Section 2: Data */}
-            <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Data
-              </span>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  File format <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={fileFormat}
-                  onChange={(e) => setFileFormat(e.target.value)}
-                  className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">-- Select --</option>
-                  <option value="bitwarden_json">Bitwarden (json)</option>
-                  <option value="bitwarden_csv">Bitwarden (csv)</option>
-                  <option value="csv">Generic (csv)</option>
-                  <option value="json">Generic (json)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Select the import file
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer px-4 py-2 bg-[#162036] hover:bg-[#1f2d48] border border-[#1f2e4d] rounded-lg text-xs font-medium text-slate-200 transition-colors flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Choose File</span>
-                    <input
-                      type="file"
-                      accept=".json,.csv"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    Target Folder <span className="text-[#78827B] font-normal">(optional)</span>
                   </label>
-                  <span className="text-xs text-slate-400 font-mono">
-                    {selectedFileName || 'No file selected'}
-                  </span>
+                  <select
+                    value={selectedFolderId}
+                    onChange={(e) => setSelectedFolderId(e.target.value)}
+                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none"
+                  >
+                    <option value="">No folder (Root Vault)</option>
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#202923] mb-1.5">
+                    File Format
+                  </label>
+                  <select
+                    value={fileFormat}
+                    onChange={(e) => setFileFormat(e.target.value)}
+                    className="w-full bg-[#F7F8F5] border border-[#E5E9E5] focus:border-[#168568] focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-[#202923] outline-none"
+                  >
+                    <option value="json">Bitwarden / SecureVault JSON</option>
+                    <option value="csv">Bitwarden / Chrome / Generic CSV</option>
+                  </select>
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  or copy/paste the import file contents
+            {/* Step Card: Drag-and-Drop Upload Area */}
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-5 sm:p-7 shadow-card space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#168568] flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                <span>2. Select or Drop File</span>
+              </h3>
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
+                  isDragging
+                    ? 'border-[#168568] bg-[#E7F4EF]/50 scale-[1.01]'
+                    : 'border-[#E5E9E5] hover:border-[#168568] bg-[#F7F8F5]/60'
+                }`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] mx-auto mb-3 shadow-subtle">
+                  <FileUp className="w-7 h-7" />
+                </div>
+                <h4 className="text-sm font-bold text-[#202923] mb-1">
+                  Drag and drop your file here
+                </h4>
+                <p className="text-xs text-[#78827B] mb-4">Supports .json and .csv password export files</p>
+
+                <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white text-xs font-semibold rounded-xl cursor-pointer shadow-subtle transition-colors">
+                  <span>Browse From Computer</span>
+                  <input
+                    type="file"
+                    accept=".json,.csv,text/csv,application/json"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
                 </label>
-                <textarea
-                  rows={5}
-                  value={rawContent}
-                  onChange={(e) => setRawContent(e.target.value)}
-                  placeholder="Paste JSON or CSV data here..."
-                  className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg p-3 text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"
-                />
+
+                {selectedFileName && (
+                  <div className="mt-4 p-2.5 bg-white border border-[#B7E3D6] rounded-xl text-xs font-semibold text-[#168568] inline-flex items-center gap-2 shadow-subtle">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Loaded: {selectedFileName}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            <button
-              onClick={handlePreview}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shadow-lg shadow-blue-600/20 flex items-center gap-2"
-            >
-              <span>Preview Import</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handlePreview}
+                disabled={!rawContent.trim()}
+                className="px-6 py-3 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl shadow-subtle flex items-center gap-2 transition-colors"
+              >
+                <span>Continue to Preview</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
         {/* STEP 2: Preview & Duplicate Handling */}
         {step === 'preview' && (
-          <div className="space-y-6">
-            <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-5 space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="space-y-5">
+            {/* Duplicate Settings Card */}
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl p-5 sm:p-7 shadow-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Import Preview</h3>
-                  <p className="text-xs text-slate-400">
-                    Found {previewItems.length} records in import file
+                  <h3 className="text-base font-bold text-[#202923]">
+                    Previewing {previewItems.length} Credentials
+                  </h3>
+                  <p className="text-xs text-[#78827B]">
+                    Review parsed items before client-side encryption. Passwords remain masked.
                   </p>
                 </div>
 
-                {/* Duplicate Handling Option */}
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-slate-400 font-medium">Duplicate handling:</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMaskedPassword(!showMaskedPassword)}
+                    className="px-3 py-1.5 bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl text-xs font-semibold text-[#202923] flex items-center gap-1.5"
+                  >
+                    {showMaskedPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    <span>{showMaskedPassword ? 'Mask Passwords' : 'Show Passwords'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Duplicate Handling Radio */}
+              <div className="p-3.5 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <span className="font-semibold text-[#202923]">Duplicate Handling:</span>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-[#202923]">
                     <input
                       type="radio"
                       name="dup"
                       checked={duplicateOption === 'skip'}
                       onChange={() => setDuplicateOption('skip')}
-                      className="text-blue-600"
+                      className="text-[#168568] focus:ring-[#168568]"
                     />
-                    <span className="text-slate-300">Skip Duplicates</span>
+                    <span>Skip duplicates</span>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer text-[#202923]">
                     <input
                       type="radio"
                       name="dup"
                       checked={duplicateOption === 'import_all'}
                       onChange={() => setDuplicateOption('import_all')}
-                      className="text-blue-600"
+                      className="text-[#168568] focus:ring-[#168568]"
                     />
-                    <span className="text-slate-300">Import All</span>
+                    <span>Import all</span>
                   </label>
                 </div>
               </div>
+            </div>
 
-              {/* Preview Table */}
-              <div className="max-h-72 overflow-y-auto border border-[#1f2e4d] rounded-lg">
+            {/* Preview Table/Cards */}
+            <div className="bg-white border border-[#E5E9E5] rounded-3xl overflow-hidden shadow-card">
+              <div className="overflow-x-auto max-h-96">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#0e1628] text-slate-400 sticky top-0 border-b border-[#1f2e4d]">
+                  <thead className="bg-[#F7F8F5] text-[#78827B] border-b border-[#E5E9E5] font-bold uppercase tracking-wider sticky top-0">
                     <tr>
-                      <th className="p-2.5">Item Name</th>
-                      <th className="p-2.5">Username</th>
-                      <th className="p-2.5">Password</th>
-                      <th className="p-2.5">Status</th>
+                      <th className="px-4 py-3">Item Name</th>
+                      <th className="px-4 py-3">Username</th>
+                      <th className="px-4 py-3">Password</th>
+                      <th className="px-4 py-3">Website</th>
+                      <th className="px-4 py-3">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1e293b]">
+                  <tbody className="divide-y divide-[#E5E9E5]">
                     {previewItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-[#162036]">
-                        <td className="p-2.5 font-medium text-slate-200">{item.itemName}</td>
-                        <td className="p-2.5 text-slate-400 font-mono">{item.username || '—'}</td>
-                        <td className="p-2.5 text-slate-500 font-mono">••••••••</td>
-                        <td className="p-2.5">
+                      <tr key={idx} className="hover:bg-[#F7F8F5]/60 transition-colors">
+                        <td className="px-4 py-3 font-bold text-[#202923]">{item.itemName}</td>
+                        <td className="px-4 py-3 font-mono text-[#78827B]">{item.username || '—'}</td>
+                        <td className="px-4 py-3 font-mono text-[#78827B]">
+                          {showMaskedPassword ? item.password || '—' : '••••••••••••'}
+                        </td>
+                        <td className="px-4 py-3 text-[#168568] truncate max-w-[160px]">
+                          {item.uri || '—'}
+                        </td>
+                        <td className="px-4 py-3">
                           {item.isDuplicate ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                               Duplicate
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E7F4EF] text-[#168568] border border-[#B7E3D6]">
                               Ready
                             </span>
                           )}
@@ -435,70 +470,86 @@ export const ImportPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
 
-              <div className="flex justify-between items-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep('input')}
-                  className="px-4 py-2 bg-[#162036] hover:bg-[#1f2d48] text-slate-300 rounded-lg text-xs"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  disabled={importing}
-                  onClick={handleExecuteImport}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium rounded-lg text-xs shadow-lg shadow-blue-600/20"
-                >
-                  {importing ? 'Encrypting & Importing...' : 'Confirm and Import Items'}
-                </button>
-              </div>
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setStep('input')}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#78827B] hover:text-[#202923]"
+              >
+                Back to File Selection
+              </button>
+
+              <button
+                type="button"
+                disabled={importing}
+                onClick={handleExecuteImport}
+                className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] text-white text-xs font-semibold rounded-xl shadow-subtle flex items-center gap-2"
+              >
+                {importing ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Encrypting & Importing...</span>
+                  </>
+                ) : (
+                  <span>Confirm & Import {previewItems.length} Items</span>
+                )}
+              </button>
             </div>
           </div>
         )}
 
-        {/* STEP 3: Complete Results */}
+        {/* STEP 3: Results Summary */}
         {step === 'complete' && (
-          <div className="bg-[#131d31] border border-[#1f2e4d] rounded-xl p-6 text-center space-y-4">
-            <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
-              <Check className="w-6 h-6" />
+          <div className="bg-white border border-[#E5E9E5] rounded-3xl p-8 sm:p-12 text-center shadow-card max-w-lg mx-auto space-y-5">
+            <div className="w-16 h-16 rounded-2xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568] mx-auto shadow-subtle">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-white">Import Complete!</h3>
-            <p className="text-xs text-slate-400">
-              Your passwords were encrypted client-side and saved securely to your vault.
-            </p>
 
-            <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto my-4 text-xs">
-              <div className="p-3 bg-[#0e1628] border border-[#1f2e4d] rounded-lg">
-                <span className="block font-bold text-emerald-400 text-base">
+            <div>
+              <h2 className="text-xl font-bold text-[#202923]">Import Completed</h2>
+              <p className="text-xs text-[#78827B] mt-1">
+                Your credentials were encrypted with your vault key and securely saved.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 p-4 bg-[#F7F8F5] border border-[#E5E9E5] rounded-2xl text-xs">
+              <div>
+                <span className="text-[10px] text-[#78827B] uppercase font-bold block mb-0.5">
+                  Imported
+                </span>
+                <span className="text-base font-bold text-[#168568]">
                   {importSummary.success}
                 </span>
-                <span className="text-slate-400">Imported</span>
               </div>
-              <div className="p-3 bg-[#0e1628] border border-[#1f2e4d] rounded-lg">
-                <span className="block font-bold text-amber-400 text-base">
-                  {importSummary.skipped}
+              <div>
+                <span className="text-[10px] text-[#78827B] uppercase font-bold block mb-0.5">
+                  Skipped
                 </span>
-                <span className="text-slate-400">Skipped</span>
+                <span className="text-base font-bold text-amber-600">{importSummary.skipped}</span>
               </div>
-              <div className="p-3 bg-[#0e1628] border border-[#1f2e4d] rounded-lg">
-                <span className="block font-bold text-red-400 text-base">
-                  {importSummary.failed}
+              <div>
+                <span className="text-[10px] text-[#78827B] uppercase font-bold block mb-0.5">
+                  Failed
                 </span>
-                <span className="text-slate-400">Failed</span>
+                <span className="text-base font-bold text-red-600">{importSummary.failed}</span>
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                setStep('input');
-                setRawContent('');
-                setSelectedFileName('');
-              }}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium"
-            >
-              Import More Data
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('input');
+                  setRawContent('');
+                  setSelectedFileName('');
+                }}
+                className="px-6 py-2.5 bg-[#168568] hover:bg-[#126e56] text-white text-xs font-semibold rounded-xl shadow-subtle"
+              >
+                Done
+              </button>
+            </div>
           </div>
         )}
       </div>

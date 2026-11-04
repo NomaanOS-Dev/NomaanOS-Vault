@@ -3,27 +3,44 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    border-color: #E5E9E5;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-[#0a0f1d] text-slate-100 min-h-screen font-sans;
+    background-color: #F7F8F5;
+    color: #202923;
+    font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+    min-height: 100vh;
   }
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+  background: #D4DAD4;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #A2AAA4;
+}
+
+/* Hide scrollbar utility for clean touch-scrolling chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 

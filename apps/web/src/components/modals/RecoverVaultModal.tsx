@@ -46,42 +46,42 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
     try {
       await recoverVault(recoveryKey.trim(), newPassword, hint);
       onSuccess();
-    } catch (err: any) {
-      // handled
+    } catch {
+      // handled in context
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-[#131d31] border border-[#1f2e4d] rounded-xl shadow-2xl p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#202923]/45 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md bg-white border border-[#E5E9E5] rounded-2xl shadow-modal p-6 relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white"
+          className="absolute top-4 right-4 text-[#78827B] hover:text-[#202923] p-1 rounded-lg hover:bg-[#F3F5F2]"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-[#E7F4EF] border border-[#B7E3D6] flex items-center justify-center text-[#168568]">
             <KeyRound className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Vault Recovery</h2>
-            <p className="text-xs text-slate-400">Restore access using your emergency Recovery Key</p>
+            <h3 className="text-base font-bold text-[#202923]">Account Recovery</h3>
+            <p className="text-xs text-[#78827B]">Reset master password with emergency recovery key</p>
           </div>
         </div>
 
         {(localError || unlockError) && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2 text-red-300 text-xs">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-xs">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
             <span>{localError || unlockError}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Emergency Recovery Key <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-[#202923] mb-1">
+              32-Character Emergency Recovery Key
             </label>
             <input
               type="text"
@@ -89,13 +89,13 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
               value={recoveryKey}
               onChange={(e) => setRecoveryKey(e.target.value)}
               placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
-              className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2.5 text-xs font-mono text-[#202923] outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              New Master Password <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-[#202923] mb-1">
+              New Master Password
             </label>
             <div className="relative">
               <input
@@ -103,13 +103,13 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new master password"
-                className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 pr-10 focus:outline-none focus:border-blue-500"
+                placeholder="At least 8 characters"
+                className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2 text-xs text-[#202923] pr-10 outline-none"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#78827B] hover:text-[#202923]"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -117,46 +117,46 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Confirm New Master Password <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-[#202923] mb-1">
+              Confirm New Master Password
             </label>
             <input
               type={showPassword ? 'text' : 'password'}
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new master password"
-              className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              placeholder="Repeat new master password"
+              className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2 text-xs text-[#202923] outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Optional New Hint
+            <label className="block text-xs font-semibold text-[#202923] mb-1">
+              Password Hint <span className="text-[#78827B] font-normal">(optional)</span>
             </label>
             <input
               type="text"
               value={hint}
               onChange={(e) => setHint(e.target.value)}
-              placeholder="New password hint"
-              className="w-full bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              placeholder="A memory trigger (never your password)"
+              className="w-full bg-white border border-[#E5E9E5] focus:border-[#168568] focus:ring-2 focus:ring-[#168568]/15 rounded-xl px-3.5 py-2 text-xs text-[#202923] outline-none"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2.5 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-[#162036] hover:bg-[#1e2d4d] text-slate-300 rounded-lg text-xs"
+              className="px-4 py-2 rounded-xl text-xs font-medium text-[#78827B] hover:bg-[#F3F5F2]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={unlockLoading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs disabled:opacity-50"
+              className="px-5 py-2 bg-[#168568] hover:bg-[#126e56] disabled:bg-[#D4DAD4] text-white rounded-xl text-xs font-semibold transition-colors shadow-subtle"
             >
-              {unlockLoading ? 'Recovering Vault...' : 'Recover Vault'}
+              {unlockLoading ? 'Recovering...' : 'Recover Vault'}
             </button>
           </div>
         </form>
@@ -164,4 +164,3 @@ export const RecoverVaultModal: React.FC<RecoverVaultModalProps> = ({
     </div>
   );
 };
-

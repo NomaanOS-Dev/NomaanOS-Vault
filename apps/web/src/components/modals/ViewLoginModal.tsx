@@ -10,9 +10,10 @@ import {
   EyeOff,
   Edit2,
   Trash2,
-  Globe,
   Calendar,
   ExternalLink,
+  ShieldCheck,
+  KeyRound,
 } from 'lucide-react';
 
 interface ViewLoginModalProps {
@@ -67,205 +68,203 @@ export const ViewLoginModal: React.FC<ViewLoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-[#131d31] border border-[#1f2e4d] rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#202923]/45 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg bg-white border border-[#E5E9E5] rounded-2xl shadow-modal flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1f2e4d] bg-[#131d31]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E9E5] bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-600/20 text-blue-400 rounded-lg flex items-center justify-center">
-              <Globe className="w-5 h-5" />
+            <div className="w-10 h-10 bg-[#E7F4EF] border border-[#B7E3D6] text-[#168568] rounded-xl flex items-center justify-center">
+              <KeyRound className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">{item.itemName}</h2>
-              <span className="text-[11px] text-slate-400">Login Credential</span>
+              <h2 className="text-base font-bold text-[#202923] tracking-tight">{item.itemName}</h2>
+              <span className="text-[11px] text-[#168568] font-semibold flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                Zero-Knowledge Decrypted
+              </span>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
             <button
               onClick={onToggleFavorite}
-              title={item.isFavorite ? 'Remove Favorite' : 'Mark Favorite'}
-              className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-amber-400"
+              title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              className="p-2 rounded-xl text-[#78827B] hover:text-amber-500 hover:bg-[#F3F5F2] transition-colors"
             >
               <Star
-                className={`w-4 h-4 ${
-                  item.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-400'
+                className={`w-5 h-5 ${
+                  item.isFavorite ? 'text-amber-500 fill-amber-500' : 'text-[#78827B]'
                 }`}
               />
             </button>
             <button
-              onClick={onEdit}
-              title="Edit Item"
-              className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-white"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button
               onClick={onClose}
-              className="p-1.5 hover:bg-[#162036] rounded text-slate-400 hover:text-white"
+              className="p-2 rounded-xl text-[#78827B] hover:text-[#202923] hover:bg-[#F3F5F2] transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
+        {/* Content Body */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
           {loading ? (
-            <div className="text-center py-10 text-xs text-slate-400">
-              <span className="inline-block animate-spin mr-2">⚙️</span>
-              Decrypting login details in browser memory...
+            <div className="p-12 text-center text-xs text-[#78827B]">
+              <span className="w-5 h-5 border-2 border-[#168568]/30 border-t-[#168568] rounded-full inline-block animate-spin mr-2 align-middle" />
+              Decrypting credential in browser memory...
             </div>
           ) : (
             <>
-              {/* Credentials Card */}
-              <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-4 space-y-4">
-                <div>
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
-                    Username
-                  </label>
-                  <div className="flex items-center justify-between bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2">
-                    <span className="text-sm font-mono text-slate-200">
-                      {payload?.username || '—'}
-                    </span>
-                    {payload?.username && (
-                      <button
-                        onClick={() => copyToClipboard(payload.username, 'user')}
-                        className="p-1 text-slate-400 hover:text-white"
-                      >
-                        {copiedField === 'user' ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
-                    Password
-                  </label>
-                  <div className="flex items-center justify-between bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2">
-                    <span className="text-sm font-mono text-slate-200">
-                      {showPassword
-                        ? payload?.password || '—'
-                        : payload?.password
-                        ? '••••••••••••••••'
-                        : '—'}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {payload?.password && (
-                        <>
-                          <button
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="p-1 text-slate-400 hover:text-white"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(payload.password, 'pwd')}
-                            className="p-1 text-slate-400 hover:text-white"
-                          >
-                            {copiedField === 'pwd' ? (
-                              <Check className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
-                        </>
+              {/* Username */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block mb-1">
+                  Username
+                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-[#202923] font-mono break-all select-all">
+                    {payload?.username || '—'}
+                  </span>
+                  {payload?.username && (
+                    <button
+                      onClick={() => copyToClipboard(payload.username, 'username')}
+                      className="p-1.5 text-[#78827B] hover:text-[#168568] rounded-lg hover:bg-white transition-colors"
+                      title="Copy username"
+                    >
+                      {copiedField === 'username' ? (
+                        <Check className="w-4 h-4 text-[#168568]" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
                       )}
-                    </div>
-                  </div>
+                    </button>
+                  )}
                 </div>
-
-                {payload?.totpSecret && (
-                  <div>
-                    <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
-                      Authenticator Key (TOTP)
-                    </label>
-                    <div className="flex items-center justify-between bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2">
-                      <span className="text-sm font-mono text-slate-200">{payload.totpSecret}</span>
-                      <button
-                        onClick={() => copyToClipboard(payload.totpSecret, 'totp')}
-                        className="p-1 text-slate-400 hover:text-white"
-                      >
-                        {copiedField === 'totp' ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Websites */}
+              {/* Password */}
+              <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block mb-1">
+                  Password
+                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-[#202923] font-mono select-all">
+                    {payload?.password
+                      ? showPassword
+                        ? payload.password
+                        : '••••••••••••••••'
+                      : '—'}
+                  </span>
+                  {payload?.password && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1.5 text-[#78827B] hover:text-[#202923] rounded-lg hover:bg-white transition-colors"
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(payload.password, 'password')}
+                        className="p-1.5 text-[#78827B] hover:text-[#168568] rounded-lg hover:bg-white transition-colors"
+                        title="Copy password"
+                      >
+                        {copiedField === 'password' ? (
+                          <Check className="w-4 h-4 text-[#168568]" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Authenticator Key */}
+              {payload?.totpSecret && (
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block mb-1">
+                    Authenticator Key (TOTP)
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#202923] font-mono break-all select-all">
+                      {payload.totpSecret}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(payload.totpSecret, 'totp')}
+                      className="p-1.5 text-[#78827B] hover:text-[#168568] rounded-lg hover:bg-white transition-colors"
+                    >
+                      {copiedField === 'totp' ? (
+                        <Check className="w-4 h-4 text-[#168568]" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* URIs */}
               {payload?.uris && payload.uris.length > 0 && payload.uris.some((u) => u.trim()) && (
-                <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-4">
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-2">
-                    Websites
-                  </label>
-                  <div className="space-y-2">
-                    {payload.uris
-                      .filter((u) => u.trim())
-                      .map((uri, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs"
-                        >
-                          <a
-                            href={uri.startsWith('http') ? uri : `https://${uri}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline flex items-center gap-1.5 truncate max-w-[340px]"
-                          >
-                            <span>{uri}</span>
-                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                          </a>
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5 space-y-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block">
+                    Website Addresses
+                  </span>
+                  {payload.uris
+                    .filter((u) => u.trim())
+                    .map((uri, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="text-[#168568] font-medium truncate mr-2 select-all">
+                          {uri}
+                        </span>
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => copyToClipboard(uri, `uri-${idx}`)}
-                            className="p-1 text-slate-400 hover:text-white shrink-0"
+                            className="p-1.5 text-[#78827B] hover:text-[#168568] rounded-lg hover:bg-white"
+                            title="Copy link"
                           >
                             {copiedField === `uri-${idx}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <Check className="w-3.5 h-3.5 text-[#168568]" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
                           </button>
+                          <a
+                            href={uri.startsWith('http') ? uri : `https://${uri}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-[#78827B] hover:text-[#168568] rounded-lg hover:bg-white"
+                            title="Open website"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
                         </div>
-                      ))}
-                  </div>
+                      </div>
+                    ))}
                 </div>
               )}
 
               {/* Notes */}
               {payload?.notes && (
-                <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-4">
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-2">
-                    Notes
-                  </label>
-                  <div className="bg-[#0e1628] border border-[#1f2e4d] rounded-lg p-3 text-xs text-slate-200 whitespace-pre-wrap font-mono">
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5 space-y-1">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block">
+                    Secure Notes
+                  </span>
+                  <p className="text-xs text-[#202923] whitespace-pre-wrap leading-relaxed select-all">
                     {payload.notes}
-                  </div>
+                  </p>
                 </div>
               )}
 
-              {/* Custom Fields */}
+              {/* Custom fields */}
               {payload?.customFields && payload.customFields.length > 0 && (
-                <div className="bg-[#162036] border border-[#1f2e4d] rounded-xl p-4 space-y-2">
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-2">
+                <div className="bg-[#F7F8F5] border border-[#E5E9E5] rounded-xl p-3.5 space-y-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#78827B] block">
                     Custom Fields
-                  </label>
-                  {payload.customFields.map((f) => (
-                    <div
-                      key={f.id}
-                      className="flex items-center justify-between bg-[#0e1628] border border-[#1f2e4d] rounded-lg px-3 py-2 text-xs"
-                    >
-                      <span className="text-slate-400">{f.name}:</span>
-                      <span className="font-mono text-slate-200">
-                        {f.type === 'hidden' ? '••••••••' : f.value}
+                  </span>
+                  {payload.customFields.map((cf) => (
+                    <div key={cf.id} className="flex items-center justify-between text-xs">
+                      <span className="text-[#78827B] font-semibold">{cf.name}:</span>
+                      <span className="text-[#202923] font-mono select-all">
+                        {cf.type === 'hidden' ? '••••••••' : cf.value}
                       </span>
                     </div>
                   ))}
@@ -273,41 +272,47 @@ export const ViewLoginModal: React.FC<ViewLoginModalProps> = ({
               )}
 
               {/* Metadata */}
-              <div className="text-[11px] text-slate-500 space-y-1 pt-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Created: {new Date(item.createdAt).toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Updated: {new Date(item.updatedAt).toLocaleString()}</span>
-                </div>
+              <div className="pt-2 text-[11px] text-[#78827B] flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>
+                  Created on{' '}
+                  {new Date(item.createdAt).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </span>
               </div>
             </>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[#1f2e4d] bg-[#131d31]">
+        {/* Footer Actions */}
+        <div className="px-6 py-4 border-t border-[#E5E9E5] bg-[#F7F8F5] flex items-center justify-between">
           <button
+            type="button"
             onClick={onDelete}
-            className="flex items-center gap-1.5 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg text-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
           >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete Item</span>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
           </button>
+
           <div className="flex items-center gap-2">
             <button
-              onClick={onEdit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors"
-            >
-              Edit
-            </button>
-            <button
+              type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-[#162036] hover:bg-[#1e2d4d] text-slate-300 rounded-lg text-xs"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78827B] hover:text-[#202923] hover:bg-white border border-transparent hover:border-[#E5E9E5] transition-all"
             >
               Close
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#168568] hover:bg-[#126e56] text-white text-xs font-semibold rounded-xl shadow-subtle transition-all"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit Credential</span>
             </button>
           </div>
         </div>
