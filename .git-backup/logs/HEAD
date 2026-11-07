@@ -1,8 +1,0 @@
-0000000000000000000000000000000000000000 fd7f793f9f516f0073ba876b52354a420ccc25ac NomaanOS-Dev <nomaanos@duck.com> 1793773930 +0530	commit (initial): feat: complete Day 1 Password Manager architecture, authentication, zero-knowledge encryption, and vaults dashboard
-fd7f793f9f516f0073ba876b52354a420ccc25ac b89a173a31438d4b2a3194c235f7ac7092ba60a8 NomaanOS-Dev <nomaanos@duck.com> 1793775475 +0530	commit: feat: complete Day 2 Secure Send, Password Generator, Import, Export, and zero-knowledge sharing
-b89a173a31438d4b2a3194c235f7ac7092ba60a8 3440add264a97041eaff724231aa5ece112e0a41 NomaanOS-Dev <nomaanos@duck.com> 1793777159 +0530	commit: feat(day3): Complete final integration, onboarding card, settings, reports, and tests
-3440add264a97041eaff724231aa5ece112e0a41 29f4bad773e6064379e2dc85389684dc61ae8f70 NomaanOS-Dev <nomaanos@duck.com> 1793782221 +0530	commit: Initial commit: Password Manager
-29f4bad773e6064379e2dc85389684dc61ae8f70 0000000000000000000000000000000000000000 NomaanOS-Dev <nomaanos@duck.com> 1793782236 +0530	Branch: renamed refs/heads/master to refs/heads/main
-0000000000000000000000000000000000000000 29f4bad773e6064379e2dc85389684dc61ae8f70 NomaanOS-Dev <nomaanos@duck.com> 1793782236 +0530	Branch: renamed refs/heads/master to refs/heads/main
-29f4bad773e6064379e2dc85389684dc61ae8f70 0000000000000000000000000000000000000000 NomaanOS-Dev <nomaanos@duck.com> 1793782391 +0530	Branch: renamed refs/heads/main to refs/heads/main
-29f4bad773e6064379e2dc85389684dc61ae8f70 29f4bad773e6064379e2dc85389684dc61ae8f70 NomaanOS-Dev <nomaanos@duck.com> 1793782391 +0530	Branch: renamed refs/heads/main to refs/heads/main
